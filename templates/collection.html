@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Collection - Painting Journal{% endblock %}
+
+{% block content %}
+<header class="collection-header">
+    <h1 class="collection-title">Your Collection</h1>
+    <div class="collection-filters">
+        <input type="text"
+               id="filter-artist"
+               class="search-input"
+               placeholder="Filter by artist..."
+               style="max-width: 200px;">
+        <select id="filter-museum" class="filter-select">
+            <option value="">All Museums</option>
+            <option value="aic">Art Institute of Chicago</option>
+            <option value="met">Metropolitan Museum of Art</option>
+            <option value="rijks">Rijksmuseum</option>
+        </select>
+        <select id="filter-tag" class="filter-select">
+            <option value="">All Tags</option>
+        </select>
+    </div>
+</header>
+
+<section id="collection-grid">
+    <div class="loading">Loading collection</div>
+</section>
+{% endblock %}

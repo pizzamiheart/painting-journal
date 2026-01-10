@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Explore - Painting Journal{% endblock %}
+
+{% block content %}
+<section class="search-section">
+    <h1 class="visually-hidden">Search Paintings</h1>
+    <form id="search-form" class="search-form">
+        <input type="text"
+               id="search-input"
+               class="search-input"
+               placeholder="Search by artist, movement, or keyword..."
+               autocomplete="off"
+               autofocus>
+        <button type="submit" class="search-button">Search</button>
+    </form>
+    <div class="search-filters">
+        <select id="museum-select" class="filter-select">
+            <option value="">All Museums</option>
+            <option value="aic">Art Institute of Chicago</option>
+            <option value="met">Metropolitan Museum of Art</option>
+            <option value="rijks">Rijksmuseum</option>
+        </select>
+    </div>
+</section>
+
+<section id="search-results">
+    <div class="empty-state">
+        <p>Search for paintings by artist, movement, or keyword</p>
+        <p>Try "Monet", "impressionism", or "starry night"</p>
+    </div>
+</section>
+
+<div class="load-more" id="load-more" style="display: none;">
+    <button class="btn">Load More</button>
+</div>
+{% endblock %}

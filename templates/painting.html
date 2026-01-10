@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Painting - Painting Journal{% endblock %}
+
+{% block content %}
+<section id="painting-detail"
+         class="painting-detail"
+         data-museum="{{ museum }}"
+         data-external-id="{{ external_id }}">
+    <div class="loading">Loading painting</div>
+</section>
+{% endblock %}
