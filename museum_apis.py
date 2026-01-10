@@ -1,11 +1,17 @@
 """
 Museum API integrations for the painting journal.
-Supports Art Institute of Chicago, Cleveland Museum of Art, Metropolitan Museum of Art, and Rijksmuseum.
+Supports Art Institute of Chicago, Cleveland Museum of Art, Europeana, Harvard Art Museums,
+Metropolitan Museum of Art, Rijksmuseum, and Smithsonian.
 """
+import os
 import re
 import requests
 import hashlib
+from dotenv import load_dotenv
 from database import get_cached_response, set_cached_response
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def _strip_html(text):
@@ -17,11 +23,21 @@ def _strip_html(text):
     clean = re.sub(r'\s+', ' ', clean).strip()
     return clean
 
-# API configuration
+# API configuration - no keys required
 AIC_BASE_URL = "https://api.artic.edu/api/v1"
-RIJKS_OAI_URL = "https://data.rijksmuseum.nl/oai"  # OAI-PMH API - no key required
+RIJKS_OAI_URL = "https://data.rijksmuseum.nl/oai"
 MET_BASE_URL = "https://collectionapi.metmuseum.org/public/collection/v1"
 CLEVELAND_BASE_URL = "https://openaccess-api.clevelandart.org/api"
+
+# API configuration - keys from environment
+HARVARD_BASE_URL = "https://api.harvardartmuseums.org"
+HARVARD_API_KEY = os.getenv("HARVARD_API_KEY", "")
+
+SMITHSONIAN_BASE_URL = "https://api.si.edu/openaccess/api/v1.0"
+SMITHSONIAN_API_KEY = os.getenv("SMITHSONIAN_API_KEY", "")
+
+EUROPEANA_BASE_URL = "https://api.europeana.eu/record/v2"
+EUROPEANA_API_KEY = os.getenv("EUROPEANA_API_KEY", "")
 
 REQUEST_TIMEOUT = 30  # Longer timeout for OAI-PMH
 
@@ -713,6 +729,326 @@ def _format_cleveland_painting(item):
     }
 
 
+# Harvard Art Museums API
+def harvard_search(query, page=1, limit=20):
+    """Search Harvard Art Museums collection."""
+    if not HARVARD_API_KEY:
+        return {"paintings": [], "total": 0, "page": page}
+
+    params = {
+        "apikey": HARVARD_API_KEY,
+        "q": query,
+        "classification": "Paintings",
+        "hasimage": 1,
+        "size": limit,
+        "page": page
+    }
+
+    data = _make_request(
+        f"{HARVARD_BASE_URL}/object",
+        params,
+        cache_prefix="harvard_search"
+    )
+
+    if not data:
+        return {"paintings": [], "total": 0, "page": page}
+
+    paintings = []
+    for item in data.get("records", []):
+        painting = _format_harvard_painting(item)
+        if painting and painting.get("image_url"):
+            paintings.append(painting)
+
+    return {
+        "paintings": paintings,
+        "total": data.get("info", {}).get("totalrecords", 0),
+        "page": page
+    }
+
+
+def harvard_get_painting(object_id):
+    """Get a single painting from Harvard Art Museums."""
+    if not HARVARD_API_KEY:
+        return None
+
+    data = _make_request(
+        f"{HARVARD_BASE_URL}/object/{object_id}",
+        {"apikey": HARVARD_API_KEY},
+        cache_prefix="harvard_artwork"
+    )
+
+    if not data:
+        return None
+
+    return _format_harvard_painting(data)
+
+
+def _format_harvard_painting(item):
+    """Format Harvard Art Museums painting data."""
+    # Get primary image
+    image_url = item.get("primaryimageurl", "")
+
+    # Get artist from people array
+    artist = "Unknown Artist"
+    people = item.get("people", [])
+    if people:
+        artist = people[0].get("name", "Unknown Artist")
+
+    # Build description
+    description = item.get("description", "") or item.get("commentary", "") or ""
+
+    return {
+        "external_id": str(item.get("id", "")),
+        "museum": "harvard",
+        "museum_name": "Harvard Art Museums",
+        "title": item.get("title", "Untitled"),
+        "artist": artist,
+        "date_display": item.get("dated", ""),
+        "medium": item.get("medium", ""),
+        "dimensions": item.get("dimensions", ""),
+        "description": _strip_html(description),
+        "image_url": image_url,
+        "thumbnail_url": image_url,
+        "museum_url": item.get("url", f"https://harvardartmuseums.org/collections/object/{item.get('id')}"),
+        "metadata": {
+            "department": item.get("department", ""),
+            "culture": item.get("culture", ""),
+            "creditLine": item.get("creditline", ""),
+            "accession_number": item.get("accessionumber", "")
+        }
+    }
+
+
+# Europeana API
+def europeana_search(query, page=1, limit=20):
+    """Search Europeana collection (European cultural heritage)."""
+    if not EUROPEANA_API_KEY:
+        return {"paintings": [], "total": 0, "page": page}
+
+    start = (page - 1) * limit + 1
+    params = {
+        "wskey": EUROPEANA_API_KEY,
+        "query": query,
+        "qf": "TYPE:IMAGE",
+        "rows": limit,
+        "start": start
+    }
+
+    data = _make_request(
+        f"{EUROPEANA_BASE_URL}/search.json",
+        params,
+        cache_prefix="europeana_search"
+    )
+
+    if not data:
+        return {"paintings": [], "total": 0, "page": page}
+
+    paintings = []
+    for item in data.get("items", []):
+        painting = _format_europeana_painting(item)
+        if painting and painting.get("image_url"):
+            paintings.append(painting)
+
+    return {
+        "paintings": paintings,
+        "total": data.get("totalResults", 0),
+        "page": page
+    }
+
+
+def europeana_get_painting(record_id):
+    """Get a single record from Europeana."""
+    if not EUROPEANA_API_KEY:
+        return None
+
+    # Europeana IDs contain slashes, need to handle URL encoding
+    data = _make_request(
+        f"{EUROPEANA_BASE_URL}/{record_id}.json",
+        {"wskey": EUROPEANA_API_KEY},
+        cache_prefix="europeana_artwork"
+    )
+
+    if not data or "object" not in data:
+        return None
+
+    return _format_europeana_painting(data["object"])
+
+
+def _format_europeana_painting(item):
+    """Format Europeana painting data."""
+    # Get title (can be array)
+    title = item.get("title", ["Untitled"])
+    if isinstance(title, list):
+        title = title[0] if title else "Untitled"
+
+    # Get creator
+    creator = item.get("dcCreator", item.get("dcCreatorLangAware", {}))
+    if isinstance(creator, dict):
+        creator = list(creator.values())[0] if creator else ["Unknown Artist"]
+    if isinstance(creator, list):
+        creator = creator[0] if creator else "Unknown Artist"
+    artist = creator if creator else "Unknown Artist"
+
+    # Get image - try edmIsShownBy first, then edmPreview
+    image_url = ""
+    if item.get("edmIsShownBy"):
+        image_url = item["edmIsShownBy"][0] if isinstance(item["edmIsShownBy"], list) else item["edmIsShownBy"]
+    elif item.get("edmPreview"):
+        image_url = item["edmPreview"][0] if isinstance(item["edmPreview"], list) else item["edmPreview"]
+
+    # Get description
+    description = item.get("dcDescription", [""])
+    if isinstance(description, list):
+        description = description[0] if description else ""
+
+    # Get data provider (the actual museum)
+    provider = item.get("dataProvider", ["Europeana"])
+    if isinstance(provider, list):
+        provider = provider[0] if provider else "Europeana"
+
+    # Get ID for URL
+    record_id = item.get("id", "")
+
+    return {
+        "external_id": record_id,
+        "museum": "europeana",
+        "museum_name": f"Europeana ({provider})",
+        "title": title,
+        "artist": artist,
+        "date_display": item.get("year", [""])[0] if isinstance(item.get("year"), list) else item.get("year", ""),
+        "medium": "",
+        "dimensions": "",
+        "description": _strip_html(description) if description else "",
+        "image_url": image_url,
+        "thumbnail_url": item.get("edmPreview", [""])[0] if isinstance(item.get("edmPreview"), list) else item.get("edmPreview", ""),
+        "museum_url": item.get("guid", f"https://www.europeana.eu/item{record_id}"),
+        "metadata": {
+            "provider": provider,
+            "country": item.get("country", [""])[0] if isinstance(item.get("country"), list) else ""
+        }
+    }
+
+
+# Smithsonian API
+def smithsonian_search(query, page=1, limit=20):
+    """Search Smithsonian Open Access collection."""
+    if not SMITHSONIAN_API_KEY:
+        return {"paintings": [], "total": 0, "page": page}
+
+    start = (page - 1) * limit
+    params = {
+        "api_key": SMITHSONIAN_API_KEY,
+        "q": f"{query} AND online_media_type:Images",
+        "rows": limit,
+        "start": start
+    }
+
+    data = _make_request(
+        f"{SMITHSONIAN_BASE_URL}/search",
+        params,
+        cache_prefix="smithsonian_search"
+    )
+
+    if not data or "response" not in data:
+        return {"paintings": [], "total": 0, "page": page}
+
+    paintings = []
+    for item in data["response"].get("rows", []):
+        painting = _format_smithsonian_painting(item)
+        if painting and painting.get("image_url"):
+            paintings.append(painting)
+
+    return {
+        "paintings": paintings,
+        "total": data["response"].get("rowCount", 0),
+        "page": page
+    }
+
+
+def smithsonian_get_painting(record_id):
+    """Get a single record from Smithsonian."""
+    if not SMITHSONIAN_API_KEY:
+        return None
+
+    data = _make_request(
+        f"{SMITHSONIAN_BASE_URL}/content/{record_id}",
+        {"api_key": SMITHSONIAN_API_KEY},
+        cache_prefix="smithsonian_artwork"
+    )
+
+    if not data or "response" not in data:
+        return None
+
+    return _format_smithsonian_painting(data["response"])
+
+
+def _format_smithsonian_painting(item):
+    """Format Smithsonian painting data."""
+    content = item.get("content", {}) or {}
+    desc_data = content.get("descriptiveNonRepeating", {}) or {}
+    indexed = content.get("indexedStructured", {}) or {}
+    freetext = content.get("freetext", {}) or {}
+
+    # Get title
+    title = desc_data.get("title", {}).get("content", "Untitled")
+
+    # Get image
+    image_url = ""
+    online_media = desc_data.get("online_media", {})
+    if online_media and online_media.get("media"):
+        media_list = online_media["media"]
+        if media_list:
+            image_url = media_list[0].get("content", "")
+
+    # Get artist
+    artist = "Unknown Artist"
+    if indexed.get("name"):
+        artist = indexed["name"][0] if indexed["name"] else "Unknown Artist"
+
+    # Get description
+    description = ""
+    if freetext.get("notes"):
+        for note in freetext["notes"]:
+            if note.get("content"):
+                description = note["content"]
+                break
+
+    # Get date
+    date_display = ""
+    if indexed.get("date"):
+        date_display = indexed["date"][0] if indexed["date"] else ""
+
+    # Get unit (which Smithsonian museum)
+    unit_name = desc_data.get("unit_code", "Smithsonian")
+    unit_codes = {
+        "SAAM": "Smithsonian American Art Museum",
+        "NPG": "National Portrait Gallery",
+        "HMSG": "Hirshhorn Museum",
+        "FSG": "Freer Gallery of Art",
+        "ACM": "Anacostia Community Museum"
+    }
+    museum_name = unit_codes.get(unit_name, f"Smithsonian ({unit_name})")
+
+    return {
+        "external_id": item.get("id", ""),
+        "museum": "smithsonian",
+        "museum_name": museum_name,
+        "title": title,
+        "artist": artist,
+        "date_display": date_display,
+        "medium": "",
+        "dimensions": "",
+        "description": _strip_html(description),
+        "image_url": image_url,
+        "thumbnail_url": image_url,
+        "museum_url": desc_data.get("record_link", ""),
+        "metadata": {
+            "unit": unit_name,
+            "data_source": desc_data.get("data_source", "")
+        }
+    }
+
+
 # Unified search function
 def search_all(query, museum=None, page=1, limit=20):
     """Search across all museums or a specific museum."""
@@ -724,10 +1060,16 @@ def search_all(query, museum=None, page=1, limit=20):
         return met_search(query, page, limit)
     elif museum == "cleveland":
         return cleveland_search(query, page, limit)
+    elif museum == "harvard":
+        return harvard_search(query, page, limit)
+    elif museum == "europeana":
+        return europeana_search(query, page, limit)
+    elif museum == "smithsonian":
+        return smithsonian_search(query, page, limit)
     else:
         # Search all museums and combine results
         results = {"paintings": [], "total": 0, "page": page}
-        per_museum = max(limit // 4, 1)
+        per_museum = max(limit // 7, 1)  # 7 museums now
 
         aic_results = aic_search(query, page, per_museum)
         results["paintings"].extend(aic_results.get("paintings", []))
@@ -745,6 +1087,18 @@ def search_all(query, museum=None, page=1, limit=20):
         results["paintings"].extend(cleveland_results.get("paintings", []))
         results["total"] += cleveland_results.get("total", 0)
 
+        harvard_results = harvard_search(query, page, per_museum)
+        results["paintings"].extend(harvard_results.get("paintings", []))
+        results["total"] += harvard_results.get("total", 0)
+
+        europeana_results = europeana_search(query, page, per_museum)
+        results["paintings"].extend(europeana_results.get("paintings", []))
+        results["total"] += europeana_results.get("total", 0)
+
+        smithsonian_results = smithsonian_search(query, page, per_museum)
+        results["paintings"].extend(smithsonian_results.get("paintings", []))
+        results["total"] += smithsonian_results.get("total", 0)
+
         return results
 
 
@@ -758,4 +1112,10 @@ def get_painting(museum, external_id):
         return met_get_painting(external_id)
     elif museum == "cleveland":
         return cleveland_get_painting(external_id)
+    elif museum == "harvard":
+        return harvard_get_painting(external_id)
+    elif museum == "europeana":
+        return europeana_get_painting(external_id)
+    elif museum == "smithsonian":
+        return smithsonian_get_painting(external_id)
     return None
