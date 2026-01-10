@@ -4,7 +4,7 @@ A personal art exploration and journaling app. Search paintings across world-cla
 
 ## Features
 
-- **Search** across Art Institute of Chicago, Rijksmuseum, and Metropolitan Museum of Art
+- **Search** across Art Institute of Chicago, Cleveland Museum of Art, Metropolitan Museum of Art, and Rijksmuseum
 - **Save** paintings to your collection with custom tags
 - **Journal** your thoughts and observations on each piece
 - **Painting of the Day** surfaces a random favorite to revisit

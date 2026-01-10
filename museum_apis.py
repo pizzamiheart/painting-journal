@@ -1,6 +1,6 @@
 """
 Museum API integrations for the painting journal.
-Supports Art Institute of Chicago, Rijksmuseum, and Metropolitan Museum of Art.
+Supports Art Institute of Chicago, Cleveland Museum of Art, Metropolitan Museum of Art, and Rijksmuseum.
 """
 import re
 import requests
@@ -21,6 +21,7 @@ def _strip_html(text):
 AIC_BASE_URL = "https://api.artic.edu/api/v1"
 RIJKS_OAI_URL = "https://data.rijksmuseum.nl/oai"  # OAI-PMH API - no key required
 MET_BASE_URL = "https://collectionapi.metmuseum.org/public/collection/v1"
+CLEVELAND_BASE_URL = "https://openaccess-api.clevelandart.org/api"
 
 REQUEST_TIMEOUT = 30  # Longer timeout for OAI-PMH
 
@@ -622,6 +623,96 @@ def _format_met_painting(item):
     }
 
 
+# Cleveland Museum of Art API (no API key required)
+def cleveland_search(query, page=1, limit=20):
+    """Search Cleveland Museum of Art collection."""
+    skip = (page - 1) * limit
+    params = {
+        "q": query,
+        "has_image": 1,
+        "limit": limit,
+        "skip": skip
+    }
+
+    data = _make_request(
+        f"{CLEVELAND_BASE_URL}/artworks/",
+        params,
+        cache_prefix="cleveland_search"
+    )
+
+    if not data:
+        return {"paintings": [], "total": 0, "page": page}
+
+    paintings = []
+    for item in data.get("data", []):
+        painting = _format_cleveland_painting(item)
+        if painting and painting.get("image_url"):
+            paintings.append(painting)
+
+    return {
+        "paintings": paintings,
+        "total": data.get("info", {}).get("total", 0),
+        "page": page
+    }
+
+
+def cleveland_get_painting(artwork_id):
+    """Get a single painting from Cleveland Museum of Art."""
+    data = _make_request(
+        f"{CLEVELAND_BASE_URL}/artworks/{artwork_id}",
+        {},
+        cache_prefix="cleveland_artwork"
+    )
+
+    if not data or "data" not in data:
+        return None
+
+    return _format_cleveland_painting(data["data"])
+
+
+def _format_cleveland_painting(item):
+    """Format Cleveland Museum painting data."""
+    # Get creator info
+    creators = item.get("creators", [])
+    artist = "Unknown Artist"
+    if creators:
+        artist = creators[0].get("description", "Unknown Artist")
+
+    # Get image URLs
+    images = item.get("images", {})
+    web_image = images.get("web", {})
+    image_url = web_image.get("url", "")
+
+    # Build description
+    description_parts = []
+    if item.get("description"):
+        description_parts.append(_strip_html(item.get("description")))
+    if item.get("fun_fact"):
+        description_parts.append(item.get("fun_fact"))
+    description = " ".join(description_parts)
+
+    return {
+        "external_id": str(item.get("id", "")),
+        "museum": "cleveland",
+        "museum_name": "Cleveland Museum of Art",
+        "title": item.get("title", "Untitled"),
+        "artist": artist,
+        "date_display": item.get("creation_date", ""),
+        "medium": item.get("technique", ""),
+        "dimensions": item.get("measurements", ""),
+        "description": description,
+        "image_url": image_url,
+        "thumbnail_url": image_url,
+        "museum_url": item.get("url", f"https://www.clevelandart.org/art/{item.get('id')}"),
+        "metadata": {
+            "department": item.get("department", ""),
+            "culture": item.get("culture", []),
+            "creditLine": item.get("creditline", ""),
+            "accession_number": item.get("accession_number", "")
+        }
+    }
+
+
 # Unified search function
 def search_all(query, museum=None, page=1, limit=20):
     """Search across all museums or a specific museum."""
@@ -631,21 +722,28 @@ def search_all(query, museum=None, page=1, limit=20):
         return rijks_search(query, page, limit)
     elif museum == "met":
         return met_search(query, page, limit)
+    elif museum == "cleveland":
+        return cleveland_search(query, page, limit)
     else:
         # Search all museums and combine results
         results = {"paintings": [], "total": 0, "page": page}
+        per_museum = max(limit // 4, 1)
 
-        aic_results = aic_search(query, page, limit // 3 or 1)
+        aic_results = aic_search(query, page, per_museum)
         results["paintings"].extend(aic_results.get("paintings", []))
         results["total"] += aic_results.get("total", 0)
 
-        rijks_results = rijks_search(query, page, limit // 3 or 1)
+        rijks_results = rijks_search(query, page, per_museum)
         results["paintings"].extend(rijks_results.get("paintings", []))
         results["total"] += rijks_results.get("total", 0)
 
-        met_results = met_search(query, page, limit // 3 or 1)
+        met_results = met_search(query, page, per_museum)
         results["paintings"].extend(met_results.get("paintings", []))
         results["total"] += met_results.get("total", 0)
+
+        cleveland_results = cleveland_search(query, page, per_museum)
+        results["paintings"].extend(cleveland_results.get("paintings", []))
+        results["total"] += cleveland_results.get("total", 0)
 
         return results
 
@@ -658,4 +756,6 @@ def get_painting(museum, external_id):
         return rijks_get_painting(external_id)
     elif museum == "met":
         return met_get_painting(external_id)
+    elif museum == "cleveland":
+        return cleveland_get_painting(external_id)
     return None
