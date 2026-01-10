@@ -177,6 +177,22 @@ async function initSearch() {
 
     if (!form) return;
 
+    // Restore search state from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const savedQuery = urlParams.get('q');
+    const savedMuseum = urlParams.get('museum');
+
+    if (savedQuery) {
+        input.value = savedQuery;
+        searchState.query = savedQuery;
+        if (savedMuseum) {
+            museumSelect.value = savedMuseum;
+            searchState.museum = savedMuseum;
+        }
+        resultsContainer.innerHTML = '<div class="loading">Searching</div>';
+        await performSearch(resultsContainer, loadMoreBtn, false);
+    }
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         searchState.query = input.value.trim();
@@ -185,6 +201,11 @@ async function initSearch() {
         searchState.hasMore = true;
 
         if (!searchState.query) return;
+
+        // Update URL with search params
+        const params = new URLSearchParams({ q: searchState.query });
+        if (searchState.museum) params.set('museum', searchState.museum);
+        history.replaceState(null, '', `/search?${params}`);
 
         resultsContainer.innerHTML = '<div class="loading">Searching</div>';
         loadMoreBtn.style.display = 'none';

@@ -141,16 +141,17 @@ def suggest_spelling(query):
     return best_match
 
 
-def _cache_key(prefix, params):
+def _cache_key(prefix, url, params):
     """Generate a cache key for API requests."""
-    param_str = str(sorted(params.items()))
-    return f"{prefix}:{hashlib.md5(param_str.encode()).hexdigest()}"
+    param_str = str(sorted(params.items())) if params else ""
+    key_str = f"{url}:{param_str}"
+    return f"{prefix}:{hashlib.md5(key_str.encode()).hexdigest()}"
 
 
 def _make_request(url, params=None, cache_prefix=None):
     """Make an API request with optional caching."""
-    if cache_prefix and params:
-        key = _cache_key(cache_prefix, params)
+    if cache_prefix:
+        key = _cache_key(cache_prefix, url, params)
         cached = get_cached_response(key)
         if cached:
             return cached
@@ -160,7 +161,7 @@ def _make_request(url, params=None, cache_prefix=None):
         response.raise_for_status()
         data = response.json()
 
-        if cache_prefix and params:
+        if cache_prefix:
             set_cached_response(key, data)
 
         return data
@@ -931,20 +932,21 @@ def _format_europeana_painting(item):
 
 # Smithsonian API
 def smithsonian_search(query, page=1, limit=20):
-    """Search Smithsonian Open Access collection."""
+    """Search Smithsonian Open Access collection (art_design category only)."""
     if not SMITHSONIAN_API_KEY:
         return {"paintings": [], "total": 0, "page": page}
 
     start = (page - 1) * limit
     params = {
         "api_key": SMITHSONIAN_API_KEY,
-        "q": f"{query} AND online_media_type:Images",
+        "q": query,
         "rows": limit,
         "start": start
     }
 
+    # Use art_design category endpoint for art-only results
     data = _make_request(
-        f"{SMITHSONIAN_BASE_URL}/search",
+        f"{SMITHSONIAN_BASE_URL}/category/art_design/search",
         params,
         cache_prefix="smithsonian_search"
     )
