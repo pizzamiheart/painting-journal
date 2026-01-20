@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}{{ artist_name }} - Painting Journal{% endblock %}
+
+{% block content %}
+<div class="artist-page" data-artist-name="{{ artist_name }}">
+    <header class="artist-header">
+        <a href="/explore" class="browse-back">&larr; Back to Explore</a>
+        <h1 class="artist-title">{{ artist_name }}</h1>
+    </header>
+
+    <section class="artist-works">
+        <div class="painting-grid" id="artist-paintings-grid">
+            <div class="loading">Loading works...</div>
+        </div>
+    </section>
+</div>
+{% endblock %}

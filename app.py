@@ -3,10 +3,14 @@ Painting Journal - A personal art exploration and journaling app.
 """
 import webbrowser
 import threading
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 
-import database as db
+# Use Supabase for cloud database (comment out and use 'database' for local SQLite)
+import supabase_db as db
+# import database as db  # Uncomment for local SQLite
+
 import museum_apis as api
+import categories
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
@@ -18,8 +22,8 @@ db.init_db()
 # Page routes
 @app.route('/')
 def home():
-    """Home page with painting of the day."""
-    return render_template('index.html')
+    """Redirect to explore page - the new home."""
+    return redirect(url_for('explore_page'))
 
 
 @app.route('/search')
@@ -34,16 +38,64 @@ def collection_page():
     return render_template('collection.html')
 
 
-@app.route('/painting/<museum>/<external_id>')
+@app.route('/painting/<museum>/<path:external_id>')
 def painting_page(museum, external_id):
     """Single painting detail page."""
     return render_template('painting.html', museum=museum, external_id=external_id)
 
 
+@app.route('/explore')
+def explore_page():
+    """Main exploration page - the new home."""
+    return render_template('explore.html')
+
+
+@app.route('/explore/era/<era_key>')
+def explore_era(era_key):
+    """Browse paintings from a specific era."""
+    era = categories.ERAS.get(era_key)
+    if not era:
+        return render_template('404.html'), 404
+    return render_template('browse.html',
+                          category_type='era',
+                          category_key=era_key,
+                          category=era)
+
+
+@app.route('/explore/theme/<theme_key>')
+def explore_theme(theme_key):
+    """Browse paintings by theme."""
+    theme = categories.THEMES.get(theme_key)
+    if not theme:
+        return render_template('404.html'), 404
+    return render_template('browse.html',
+                          category_type='theme',
+                          category_key=theme_key,
+                          category=theme)
+
+
+@app.route('/explore/mood/<mood_key>')
+def explore_mood(mood_key):
+    """Browse paintings by mood."""
+    mood = categories.MOODS.get(mood_key)
+    if not mood:
+        return render_template('404.html'), 404
+    return render_template('browse.html',
+                          category_type='mood',
+                          category_key=mood_key,
+                          category=mood)
+
+
+@app.route('/explore/artist/<artist_name>')
+def explore_artist(artist_name):
+    """Browse works by a specific artist."""
+    return render_template('artist.html', artist_name=artist_name)
+
+
 # API routes
 @app.route('/api/search')
 def api_search():
-    """Search for paintings across museums."""
+    """Search for paintings in local database."""
     query = request.args.get('q', '')
     museum = request.args.get('museum', None)
     page = int(request.args.get('page', 1))
@@ -52,7 +104,8 @@ def api_search():
     if not query:
         return jsonify({"error": "Query parameter 'q' is required"}), 400
 
-    results = api.search_all(query, museum, page, limit)
+    # Search local Supabase database
+    results = db.search_paintings(query, museum, page, limit)
 
     # Add spelling suggestion if few/no results found
     if results.get('total', 0) < 3:
@@ -63,7 +116,46 @@ def api_search():
     return jsonify(results)
 
 
-@app.route('/api/painting/<museum>/<external_id>')
+@app.route('/api/explore/categories')
+def api_get_categories():
+    """Get all category data for the explore page."""
+    return jsonify({
+        "eras": {k: {"key": k, **v} for k, v in categories.ERAS.items()},
+        "themes": {k: {"key": k, **v} for k, v in categories.THEMES.items()},
+        "moods": {k: {"key": k, **v} for k, v in categories.MOODS.items()},
+        "featured_artist": categories.get_featured_artist(),
+        "weekly_spotlight": categories.get_weekly_spotlight()
+    })
+
+
+@app.route('/api/explore/<category_type>/<category_key>')
+def api_explore_category(category_type, category_key):
+    """Fetch paintings for a specific category."""
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 12))
+
+    result = categories.fetch_by_category(category_type, category_key, page, limit)
+    return jsonify(result)
+
+
+@app.route('/api/explore/surprise')
+def api_surprise():
+    """Get a random painting for 'Surprise Me' feature."""
+    painting = categories.fetch_surprise()
+    if painting:
+        return jsonify(painting)
+    return jsonify({"error": "Could not fetch a painting"}), 500
+
+
+@app.route('/api/explore/artist/<artist_name>')
+def api_artist_works(artist_name):
+    """Fetch works by a specific artist."""
+    limit = int(request.args.get('limit', 12))
+    paintings = categories.fetch_artist_works(artist_name, limit)
+    return jsonify({"paintings": paintings, "artist": artist_name})
+
+
+@app.route('/api/painting/<museum>/<path:external_id>')
 def api_get_painting(museum, external_id):
     """Get a single painting's details."""
     painting = api.get_painting(museum, external_id)
@@ -126,7 +218,7 @@ def api_add_favorite():
     return jsonify({"error": "Failed to add favorite"}), 500
 
 
-@app.route('/api/favorites/<int:favorite_id>', methods=['DELETE'])
+@app.route('/api/favorites/<favorite_id>', methods=['DELETE'])
 def api_remove_favorite(favorite_id):
     """Remove a painting from favorites."""
     if db.remove_favorite(favorite_id):
@@ -134,7 +226,7 @@ def api_remove_favorite(favorite_id):
     return jsonify({"error": "Favorite not found"}), 404
 
 
-@app.route('/api/favorites/<int:favorite_id>')
+@app.route('/api/favorites/<favorite_id>')
 def api_get_favorite(favorite_id):
     """Get a single favorite with its journal entries."""
     favorite = db.get_favorite(favorite_id)
@@ -162,7 +254,7 @@ def api_get_tags():
     return jsonify({"tags": tags})
 
 
-@app.route('/api/favorites/<int:favorite_id>/tags', methods=['POST'])
+@app.route('/api/favorites/<favorite_id>/tags', methods=['POST'])
 def api_add_tag(favorite_id):
     """Add a tag to a favorite."""
     data = request.get_json()
@@ -174,7 +266,7 @@ def api_add_tag(favorite_id):
     return jsonify({"message": "Tag already exists"})
 
 
-@app.route('/api/favorites/<int:favorite_id>/tags/<tag_name>', methods=['DELETE'])
+@app.route('/api/favorites/<favorite_id>/tags/<tag_name>', methods=['DELETE'])
 def api_remove_tag(favorite_id, tag_name):
     """Remove a tag from a favorite."""
     if db.remove_tag_from_favorite(favorite_id, tag_name):
@@ -183,14 +275,14 @@ def api_remove_tag(favorite_id, tag_name):
 
 
 # Journal API
-@app.route('/api/favorites/<int:favorite_id>/journal', methods=['GET'])
+@app.route('/api/favorites/<favorite_id>/journal', methods=['GET'])
 def api_get_journal_entries(favorite_id):
     """Get all journal entries for a favorite."""
     entries = db.get_journal_entries(favorite_id)
     return jsonify({"entries": entries})
 
 
-@app.route('/api/favorites/<int:favorite_id>/journal', methods=['POST'])
+@app.route('/api/favorites/<favorite_id>/journal', methods=['POST'])
 def api_add_journal_entry(favorite_id):
     """Add a journal entry for a favorite."""
     data = request.get_json()
@@ -203,7 +295,7 @@ def api_add_journal_entry(favorite_id):
     return jsonify({"error": "Failed to add journal entry"}), 500
 
 
-@app.route('/api/journal/<int:entry_id>', methods=['PUT'])
+@app.route('/api/journal/<entry_id>', methods=['PUT'])
 def api_update_journal_entry(entry_id):
     """Update a journal entry."""
     data = request.get_json()
@@ -215,7 +307,7 @@ def api_update_journal_entry(entry_id):
     return jsonify({"error": "Journal entry not found"}), 404
 
 
-@app.route('/api/journal/<int:entry_id>', methods=['DELETE'])
+@app.route('/api/journal/<entry_id>', methods=['DELETE'])
 def api_delete_journal_entry(entry_id):
     """Delete a journal entry."""
     if db.delete_journal_entry(entry_id):
@@ -225,13 +317,13 @@ def api_delete_journal_entry(entry_id):
 
 def open_browser():
     """Open browser after a short delay."""
-    webbrowser.open('http://127.0.0.1:5000')
+    webbrowser.open('http://127.0.0.1:5001')
 
 
 if __name__ == '__main__':
     # Open browser after 1.5 seconds
     threading.Timer(1.5, open_browser).start()
     print("\n  Painting Journal")
-    print("  Starting server at http://127.0.0.1:5000")
+    print("  Starting server at http://127.0.0.1:5001")
     print("  Press Ctrl+C to stop\n")
-    app.run(debug=False, port=5000)
+    app.run(debug=False, port=5001)

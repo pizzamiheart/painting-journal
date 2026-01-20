@@ -2,6 +2,75 @@
  * Painting Journal - Frontend Application
  */
 
+// Lightbox for fullscreen image viewing
+const Lightbox = {
+    element: null,
+
+    init() {
+        // Create lightbox element if it doesn't exist
+        if (!document.getElementById('lightbox')) {
+            const lightbox = document.createElement('div');
+            lightbox.id = 'lightbox';
+            lightbox.className = 'lightbox';
+            lightbox.innerHTML = `
+                <button class="lightbox__close">&times;</button>
+                <img class="lightbox__image" src="" alt="">
+                <div class="lightbox__info">
+                    <div class="lightbox__title"></div>
+                    <div class="lightbox__artist"></div>
+                </div>
+                <div class="lightbox__hint">Press ESC or click anywhere to close</div>
+            `;
+            document.body.appendChild(lightbox);
+            this.element = lightbox;
+
+            // Close on click
+            lightbox.addEventListener('click', () => this.close());
+
+            // Prevent close when clicking image
+            lightbox.querySelector('.lightbox__image').addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // Close button
+            lightbox.querySelector('.lightbox__close').addEventListener('click', () => this.close());
+
+            // Close on ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.isOpen()) {
+                    this.close();
+                }
+            });
+        }
+        this.element = document.getElementById('lightbox');
+    },
+
+    open(imageUrl, title, artist) {
+        if (!this.element) this.init();
+
+        const img = this.element.querySelector('.lightbox__image');
+        img.src = imageUrl;
+        img.alt = title;
+
+        this.element.querySelector('.lightbox__title').textContent = title;
+        this.element.querySelector('.lightbox__artist').textContent = artist;
+
+        this.element.classList.add('is-active');
+        document.body.style.overflow = 'hidden';
+    },
+
+    close() {
+        if (this.element) {
+            this.element.classList.remove('is-active');
+            document.body.style.overflow = '';
+        }
+    },
+
+    isOpen() {
+        return this.element && this.element.classList.contains('is-active');
+    }
+};
+
 const API = {
     async search(query, museum = null, page = 1) {
         const params = new URLSearchParams({ q: query, page });
@@ -91,6 +160,29 @@ const API = {
             method: 'DELETE'
         });
         return response.json();
+    },
+
+    // Explore API methods
+    async getCategories() {
+        const response = await fetch('/api/explore/categories');
+        return response.json();
+    },
+
+    async exploreCategory(categoryType, categoryKey, page = 1, limit = 12) {
+        const params = new URLSearchParams({ page, limit });
+        const response = await fetch(`/api/explore/${categoryType}/${categoryKey}?${params}`);
+        return response.json();
+    },
+
+    async getSurprise() {
+        const response = await fetch('/api/explore/surprise');
+        return response.json();
+    },
+
+    async getArtistWorks(artistName, limit = 12) {
+        const params = new URLSearchParams({ limit });
+        const response = await fetch(`/api/explore/artist/${encodeURIComponent(artistName)}?${params}`);
+        return response.json();
     }
 };
 
@@ -104,11 +196,35 @@ function formatDate(dateString) {
     });
 }
 
+// Create skeleton loading grid
+function createSkeletonGrid(count = 6) {
+    let html = '<div class="skeleton-grid">';
+    for (let i = 0; i < count; i++) {
+        html += `
+            <div class="skeleton-card">
+                <div class="skeleton-card__frame"></div>
+                <div class="skeleton-card__placard">
+                    <div class="skeleton-card__title"></div>
+                    <div class="skeleton-card__artist"></div>
+                </div>
+            </div>
+        `;
+    }
+    html += '</div>';
+    return html;
+}
+
+// Create elegant loading message
+function createLoading(message = 'Curating your gallery') {
+    return `<div class="loading">${message}</div>`;
+}
+
 function createPaintingCard(painting) {
     const card = document.createElement('article');
     card.className = 'painting-card';
     card.onclick = () => {
-        window.location.href = `/painting/${painting.museum}/${painting.external_id}`;
+        // URL-encode the external_id to handle IDs with slashes (e.g., Europeana)
+        window.location.href = `/painting/${painting.museum}/${encodeURIComponent(painting.external_id)}`;
     };
 
     card.innerHTML = `
@@ -124,6 +240,14 @@ function createPaintingCard(painting) {
             <p class="painting-card__museum">${painting.museum_name || painting.museum}</p>
         </div>
     `;
+
+    // Add fade-in effect when image loads
+    const img = card.querySelector('.painting-card__image');
+    if (img.complete) {
+        img.classList.add('loaded');
+    } else {
+        img.addEventListener('load', () => img.classList.add('loaded'));
+    }
 
     return card;
 }
@@ -148,7 +272,7 @@ async function initHome() {
     }
 
     container.innerHTML = `
-        <a href="/painting/${data.museum}/${data.external_id}" class="hero__painting">
+        <a href="/painting/${data.museum}/${encodeURIComponent(data.external_id)}" class="hero__painting">
             <div class="hero__image-container">
                 <img class="hero__image" src="${data.image_url}" alt="${data.title}">
             </div>
@@ -207,7 +331,7 @@ async function initSearch() {
         if (searchState.museum) params.set('museum', searchState.museum);
         history.replaceState(null, '', `/search?${params}`);
 
-        resultsContainer.innerHTML = '<div class="loading">Searching</div>';
+        resultsContainer.innerHTML = createSkeletonGrid(8);
         loadMoreBtn.style.display = 'none';
 
         await performSearch(resultsContainer, loadMoreBtn, false);
@@ -305,7 +429,7 @@ async function initCollection() {
     if (!container) return;
 
     async function loadCollection() {
-        container.innerHTML = '<div class="loading">Loading collection</div>';
+        container.innerHTML = createSkeletonGrid(6);
 
         const filters = {};
         if (filterArtist && filterArtist.value) filters.artist = filterArtist.value;
@@ -404,15 +528,19 @@ async function initPaintingDetail() {
 function renderPaintingDetail(container, painting) {
     const isFavorite = painting.is_favorite;
     const favoriteId = painting.favorite_id;
+    const artistName = painting.artist || 'Unknown Artist';
 
     container.innerHTML = `
         <div class="painting-detail__main">
             <div class="painting-detail__image-container">
                 <img class="painting-detail__image" src="${painting.image_url}" alt="${painting.title}">
+                <span class="click-hint">Click to view full size</span>
             </div>
             <div class="painting-detail__sidebar">
                 <h1 class="painting-detail__title">${painting.title}</h1>
-                <p class="painting-detail__artist">${painting.artist}</p>
+                <p class="painting-detail__artist">
+                    <a href="/explore/artist/${encodeURIComponent(artistName)}" class="artist-link">${artistName}</a>
+                </p>
 
                 <div class="painting-actions">
                     <button class="btn btn--favorite ${isFavorite ? 'is-favorite' : ''}"
@@ -438,25 +566,25 @@ function renderPaintingDetail(container, painting) {
                             <span class="painting-detail__meta-value">${painting.medium}</span>
                         </div>
                     ` : ''}
-                    ${painting.dimensions ? `
-                        <div class="painting-detail__meta-item">
-                            <span class="painting-detail__meta-label">Dimensions</span>
-                            <span class="painting-detail__meta-value">${painting.dimensions}</span>
-                        </div>
-                    ` : ''}
                     <div class="painting-detail__meta-item">
                         <span class="painting-detail__meta-label">Museum</span>
                         <span class="painting-detail__meta-value">${painting.museum_name}</span>
                     </div>
                 </div>
 
-                ${painting.description ? `
-                    <div class="painting-detail__description">
-                        <p>${painting.description}</p>
-                    </div>
-                ` : ''}
-
                 ${isFavorite ? `
+                    <div class="journal-section journal-section--sidebar" id="journal-section">
+                        <h3 class="journal-section__title">Your Notes</h3>
+                        <div class="journal-form">
+                            <textarea class="journal-textarea" id="new-entry-text"
+                                      placeholder="What do you notice? How does it make you feel?"></textarea>
+                            <button class="btn btn--primary" id="add-entry-btn">Add Note</button>
+                        </div>
+                        <div class="journal-entries" id="journal-entries">
+                            <div class="loading">Loading notes</div>
+                        </div>
+                    </div>
+
                     <div class="tags-section" id="tags-section">
                         <p class="tags-section__title">Tags</p>
                         <div class="tags-list" id="tags-list">
@@ -476,19 +604,21 @@ function renderPaintingDetail(container, painting) {
             </div>
         </div>
 
-        ${isFavorite ? `
-            <div class="journal-section" id="journal-section">
-                <h2 class="journal-section__title">Journal</h2>
-                <div class="journal-form">
-                    <textarea class="journal-textarea" id="new-entry-text"
-                              placeholder="Write your thoughts, observations, or analysis..."></textarea>
-                    <button class="btn btn--primary" id="add-entry-btn">Add Entry</button>
-                </div>
-                <div class="journal-entries" id="journal-entries">
-                    <div class="loading">Loading journal entries</div>
-                </div>
+        ${painting.description ? `
+            <div class="painting-detail__description">
+                <p>${painting.description}</p>
             </div>
         ` : ''}
+
+        <section class="more-by-artist" id="more-by-artist">
+            <h2 class="more-by-artist__title">More by ${artistName}</h2>
+            <div class="more-by-artist__grid" id="more-by-artist-grid">
+                <div class="loading">Loading...</div>
+            </div>
+            <a href="/explore/artist/${encodeURIComponent(artistName)}" class="more-by-artist__link">
+                View all works by ${artistName} &rarr;
+            </a>
+        </section>
     `;
 
     // Set up favorite button
@@ -518,17 +648,60 @@ function renderPaintingDetail(container, painting) {
         }
     });
 
-    // Set up tags if favorite
+    // Set up tags and journal if favorite
     if (isFavorite) {
         setupTags(painting.favorite_id, painting.tags || []);
         loadJournalEntries(painting.favorite_id);
     }
+
+    // Load more by this artist
+    loadMoreByArtist(artistName, painting.external_id);
+
+    // Initialize lightbox for image click
+    Lightbox.init();
+    const imageContainer = container.querySelector('.painting-detail__image-container');
+    if (imageContainer) {
+        imageContainer.addEventListener('click', () => {
+            Lightbox.open(painting.image_url, painting.title, artistName);
+        });
+    }
 }
 
-function setupTags(favoriteId, existingTags) {
+async function loadMoreByArtist(artistName, currentPaintingId) {
+    const grid = document.getElementById('more-by-artist-grid');
+    const section = document.getElementById('more-by-artist');
+
+    if (!artistName || artistName === 'Unknown Artist' || artistName === 'Unknown') {
+        section.style.display = 'none';
+        return;
+    }
+
+    try {
+        const data = await API.getArtistWorks(artistName, 6);
+        const paintings = (data.paintings || []).filter(p => p.external_id !== currentPaintingId);
+
+        if (paintings.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        grid.innerHTML = '';
+        paintings.slice(0, 4).forEach(painting => {
+            const card = createPaintingCard(painting);
+            card.classList.add('painting-card--small');
+            grid.appendChild(card);
+        });
+    } catch (error) {
+        console.error('Error loading more by artist:', error);
+        section.style.display = 'none';
+    }
+}
+
+async function setupTags(favoriteId, existingTags) {
     const tagsList = document.getElementById('tags-list');
     const newTagInput = document.getElementById('new-tag-input');
     const addTagBtn = document.getElementById('add-tag-btn');
+    const tagsSection = document.getElementById('tags-section');
 
     // Remove tag
     tagsList.addEventListener('click', async (e) => {
@@ -536,13 +709,19 @@ function setupTags(favoriteId, existingTags) {
             const tag = e.target.dataset.tag;
             await API.removeTag(favoriteId, tag);
             e.target.parentElement.remove();
+            // Show the tag again in suggestions
+            const suggestionEl = tagsSection.querySelector(`.tag-suggestion[data-tag="${tag}"]`);
+            if (suggestionEl) suggestionEl.style.display = '';
         }
     });
 
-    // Add tag
-    const addTag = async () => {
-        const tag = newTagInput.value.trim().toLowerCase();
+    // Add tag function
+    const addTag = async (tag) => {
+        tag = tag.trim().toLowerCase();
         if (!tag) return;
+
+        // Check if already added
+        if (tagsList.querySelector(`.tag__remove[data-tag="${tag}"]`)) return;
 
         await API.addTag(favoriteId, tag);
 
@@ -552,12 +731,48 @@ function setupTags(favoriteId, existingTags) {
         tagsList.appendChild(tagEl);
 
         newTagInput.value = '';
+
+        // Hide from suggestions if present
+        const suggestionEl = tagsSection.querySelector(`.tag-suggestion[data-tag="${tag}"]`);
+        if (suggestionEl) suggestionEl.style.display = 'none';
     };
 
-    addTagBtn.addEventListener('click', addTag);
+    addTagBtn.addEventListener('click', () => addTag(newTagInput.value));
     newTagInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addTag();
+        if (e.key === 'Enter') addTag(newTagInput.value);
     });
+
+    // Load and display existing tags as suggestions
+    try {
+        const { tags } = await API.getTags();
+        if (tags && tags.length > 0) {
+            // Filter out tags already on this painting
+            const availableTags = tags.filter(t => !existingTags.includes(t.name));
+
+            if (availableTags.length > 0) {
+                const suggestionsContainer = document.createElement('div');
+                suggestionsContainer.className = 'tag-suggestions';
+                suggestionsContainer.innerHTML = `
+                    <p class="tag-suggestions__label">Quick add:</p>
+                    <div class="tag-suggestions__list">
+                        ${availableTags.map(t => `
+                            <button type="button" class="tag-suggestion" data-tag="${t.name}">${t.name}</button>
+                        `).join('')}
+                    </div>
+                `;
+                tagsSection.appendChild(suggestionsContainer);
+
+                // Handle clicking suggestions
+                suggestionsContainer.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('tag-suggestion')) {
+                        addTag(e.target.dataset.tag);
+                    }
+                });
+            }
+        }
+    } catch (e) {
+        console.error('Failed to load tag suggestions:', e);
+    }
 }
 
 async function loadJournalEntries(favoriteId) {
@@ -659,15 +874,233 @@ async function loadJournalEntries(favoriteId) {
     }
 }
 
+// Explore page
+async function initExplore() {
+    const erasGrid = document.getElementById('eras-grid');
+    const themesGrid = document.getElementById('themes-grid');
+    const moodsGrid = document.getElementById('moods-grid');
+    const surpriseBtn = document.getElementById('surprise-btn');
+
+    if (!erasGrid) return;
+
+    try {
+        const data = await API.getCategories();
+
+        // Populate featured artist
+        if (data.featured_artist) {
+            const artist = data.featured_artist;
+            document.getElementById('featured-name').textContent = artist.full_name;
+            document.getElementById('featured-bio').textContent = artist.bio;
+            document.getElementById('featured-link').href = `/explore/artist/${encodeURIComponent(artist.name)}`;
+        }
+
+        // Populate weekly spotlight
+        if (data.weekly_spotlight) {
+            const spotlight = data.weekly_spotlight;
+            document.getElementById('spotlight-name').textContent = spotlight.name;
+            document.getElementById('spotlight-years').textContent = spotlight.years;
+            document.getElementById('spotlight-desc').textContent = spotlight.description;
+            document.getElementById('spotlight-link').href = `/explore/era/${spotlight.key}`;
+        }
+
+        // Populate eras
+        erasGrid.innerHTML = '';
+        Object.entries(data.eras).forEach(([key, era]) => {
+            const card = document.createElement('a');
+            card.href = `/explore/era/${key}`;
+            card.className = 'category-card category-card--era';
+            card.style.setProperty('--card-accent', era.wall_color);
+            card.innerHTML = `
+                <h3 class="category-card__name">${era.name}</h3>
+                <p class="category-card__years">${era.years}</p>
+                <p class="category-card__description">${era.description}</p>
+            `;
+            erasGrid.appendChild(card);
+        });
+
+        // Populate themes
+        themesGrid.innerHTML = '';
+        Object.entries(data.themes).forEach(([key, theme]) => {
+            const card = document.createElement('a');
+            card.href = `/explore/theme/${key}`;
+            card.className = 'category-card';
+            card.innerHTML = `
+                <div class="category-card__icon">${theme.icon || ''}</div>
+                <h3 class="category-card__name">${theme.name}</h3>
+                <p class="category-card__description">${theme.description}</p>
+            `;
+            themesGrid.appendChild(card);
+        });
+
+        // Populate moods
+        moodsGrid.innerHTML = '';
+        Object.entries(data.moods).forEach(([key, mood]) => {
+            const btn = document.createElement('a');
+            btn.href = `/explore/mood/${key}`;
+            btn.className = 'mood-btn';
+            btn.textContent = mood.name;
+            moodsGrid.appendChild(btn);
+        });
+
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        erasGrid.innerHTML = '<p>Failed to load categories</p>';
+    }
+
+    // Surprise Me button
+    if (surpriseBtn) {
+        surpriseBtn.addEventListener('click', async () => {
+            surpriseBtn.disabled = true;
+            surpriseBtn.querySelector('.surprise-btn__text').textContent = 'Finding...';
+
+            try {
+                const painting = await API.getSurprise();
+                if (painting && painting.museum && painting.external_id) {
+                    window.location.href = `/painting/${painting.museum}/${encodeURIComponent(painting.external_id)}`;
+                } else {
+                    alert('Could not find a painting. Try again!');
+                    surpriseBtn.disabled = false;
+                    surpriseBtn.querySelector('.surprise-btn__text').textContent = 'Surprise Me';
+                }
+            } catch (error) {
+                console.error('Surprise error:', error);
+                surpriseBtn.disabled = false;
+                surpriseBtn.querySelector('.surprise-btn__text').textContent = 'Surprise Me';
+            }
+        });
+    }
+}
+
+// Browse page (category view)
+let browseState = {
+    categoryType: '',
+    categoryKey: '',
+    page: 1,
+    loading: false,
+    hasMore: true
+};
+
+async function initBrowse() {
+    const browsePage = document.querySelector('.browse-page');
+    if (!browsePage) return;
+
+    browseState.categoryType = browsePage.dataset.categoryType;
+    browseState.categoryKey = browsePage.dataset.categoryKey;
+
+    const grid = document.getElementById('paintings-grid');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const loadMoreContainer = document.getElementById('load-more');
+
+    await loadBrowsePaintings(grid, loadMoreContainer, false);
+
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', async () => {
+            if (browseState.loading || !browseState.hasMore) return;
+            browseState.page++;
+            await loadBrowsePaintings(grid, loadMoreContainer, true);
+        });
+    }
+}
+
+async function loadBrowsePaintings(grid, loadMoreContainer, append) {
+    if (browseState.loading) return;
+    browseState.loading = true;
+
+    // Show skeleton loading for initial load
+    if (!append) {
+        grid.innerHTML = createSkeletonGrid(8);
+    }
+
+    try {
+        const data = await API.exploreCategory(
+            browseState.categoryType,
+            browseState.categoryKey,
+            browseState.page
+        );
+
+        if (!append) {
+            grid.innerHTML = '';
+        }
+
+        if (data.paintings && data.paintings.length > 0) {
+            data.paintings.forEach(painting => {
+                grid.appendChild(createPaintingCard(painting));
+            });
+
+            browseState.hasMore = data.paintings.length >= 12;
+            loadMoreContainer.style.display = browseState.hasMore ? 'block' : 'none';
+        } else if (!append) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <p>No paintings found in this category</p>
+                    <a href="/explore" class="btn">Back to Explore</a>
+                </div>
+            `;
+            loadMoreContainer.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading paintings:', error);
+        if (!append) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <p>Failed to load paintings</p>
+                </div>
+            `;
+        }
+    } finally {
+        browseState.loading = false;
+    }
+}
+
+// Artist page
+async function initArtist() {
+    const artistPage = document.querySelector('.artist-page');
+    if (!artistPage) return;
+
+    const artistName = artistPage.dataset.artistName;
+    const grid = document.getElementById('artist-paintings-grid');
+
+    // Show skeleton loading immediately
+    grid.innerHTML = createSkeletonGrid(12);
+
+    try {
+        const data = await API.getArtistWorks(artistName, 24);
+
+        grid.innerHTML = '';
+
+        if (data.paintings && data.paintings.length > 0) {
+            data.paintings.forEach(painting => {
+                grid.appendChild(createPaintingCard(painting));
+            });
+        } else {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <p>No paintings found for this artist</p>
+                    <a href="/explore" class="btn">Back to Explore</a>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading artist works:', error);
+        grid.innerHTML = `
+            <div class="empty-state">
+                <p>Failed to load works</p>
+            </div>
+        `;
+    }
+}
+
 // Initialize based on page
 document.addEventListener('DOMContentLoaded', () => {
     // Highlight current nav link
     const path = window.location.pathname;
     document.querySelectorAll('.site-nav a').forEach(link => {
-        if (link.getAttribute('href') === path ||
-            (path === '/' && link.getAttribute('href') === '/') ||
-            (path.startsWith('/search') && link.getAttribute('href') === '/search') ||
-            (path.startsWith('/collection') && link.getAttribute('href') === '/collection')) {
+        const href = link.getAttribute('href');
+        if (href === path ||
+            (path === '/' && href === '/explore') ||
+            (path.startsWith('/explore') && href === '/explore') ||
+            (path.startsWith('/search') && href === '/search') ||
+            (path.startsWith('/collection') && href === '/collection')) {
             link.classList.add('active');
         }
     });
@@ -684,5 +1117,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (document.getElementById('painting-detail')) {
         initPaintingDetail();
+    }
+    if (document.getElementById('eras-grid')) {
+        initExplore();
+    }
+    if (document.querySelector('.browse-page')) {
+        initBrowse();
+    }
+    if (document.querySelector('.artist-page')) {
+        initArtist();
     }
 });

@@ -1,14 +1,25 @@
 """
 Museum API integrations for the painting journal.
-Supports Art Institute of Chicago, Cleveland Museum of Art, Europeana, Harvard Art Museums,
-Metropolitan Museum of Art, Rijksmuseum, and Smithsonian.
+Supports Art Institute of Chicago, Cleveland Museum of Art, Harvard Art Museums,
+Metropolitan Museum of Art, Rijksmuseum, and SMK (Denmark).
 """
 import os
 import re
 import requests
 import hashlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
-from database import get_cached_response, set_cached_response
+
+# Use Supabase for cloud caching and local DB queries
+try:
+    from supabase_db import (
+        get_cached_response, set_cached_response,
+        search_paintings, get_painting_from_db
+    )
+    USE_LOCAL_DB = True
+except ImportError:
+    from database import get_cached_response, set_cached_response
+    USE_LOCAL_DB = False
 
 # Load environment variables from .env file
 load_dotenv()
@@ -38,6 +49,9 @@ SMITHSONIAN_API_KEY = os.getenv("SMITHSONIAN_API_KEY", "")
 
 EUROPEANA_BASE_URL = "https://api.europeana.eu/record/v2"
 EUROPEANA_API_KEY = os.getenv("EUROPEANA_API_KEY", "")
+
+# SMK (Statens Museum for Kunst - Denmark) - no API key required
+SMK_BASE_URL = "https://api.smk.dk/api/v1"
 
 REQUEST_TIMEOUT = 30  # Longer timeout for OAI-PMH
 
@@ -78,6 +92,14 @@ KNOWN_ARTISTS = [
     "Caillebotte", "Gustave Caillebotte", "Morisot", "Berthe Morisot",
     "Gauguin", "Paul Gauguin", "Van Dyck", "Anthony van Dyck",
     "Toorop", "Jan Toorop", "Mondrian", "Piet Mondrian",
+    # Skagen Painters (Denmark)
+    "P.S. Krøyer", "Peder Severin Krøyer", "Krøyer",
+    "Anna Ancher", "Michael Ancher", "Ancher",
+    "Marie Krøyer", "Viggo Johansen", "Oscar Björck",
+    "Holger Drachmann", "Christian Krohg", "Laurits Tuxen",
+    # Danish Golden Age
+    "C.W. Eckersberg", "Christen Købke", "Wilhelm Hammershøi",
+    "Vilhelm Hammershøi", "Hammershøi",
 ]
 
 
@@ -1051,9 +1073,164 @@ def _format_smithsonian_painting(item):
     }
 
 
-# Unified search function
+# SMK (Statens Museum for Kunst - Denmark) API
+def smk_search(query, page=1, limit=20):
+    """Search SMK (National Gallery of Denmark) collection."""
+    offset = (page - 1) * limit
+
+    # Build filters - search in title, artist, and ensure has image
+    params = {
+        "keys": query,
+        "offset": offset,
+        "rows": limit,
+        "filters": "[has_image:true]"
+    }
+
+    data = _make_request(
+        f"{SMK_BASE_URL}/art/search/",
+        params,
+        cache_prefix="smk_search"
+    )
+
+    if not data:
+        return {"paintings": [], "total": 0, "page": page}
+
+    paintings = []
+    for item in data.get("items", []):
+        painting = _format_smk_painting(item)
+        if painting and painting.get("image_url"):
+            paintings.append(painting)
+
+    return {
+        "paintings": paintings,
+        "total": data.get("found", 0),
+        "page": page
+    }
+
+
+def smk_get_painting(object_number):
+    """Get a single painting from SMK by object number."""
+    params = {
+        "keys": "*",
+        "filters": f"[object_number:{object_number}]",
+        "rows": 1
+    }
+
+    data = _make_request(
+        f"{SMK_BASE_URL}/art/search/",
+        params,
+        cache_prefix="smk_artwork"
+    )
+
+    if not data or not data.get("items"):
+        return None
+
+    return _format_smk_painting(data["items"][0])
+
+
+def _format_smk_painting(item):
+    """Format SMK painting data."""
+    # Handle case where item might be a string (error response)
+    if not isinstance(item, dict):
+        return None
+
+    # Get title (prefer English)
+    titles = item.get("titles", [])
+    title = "Untitled"
+    if isinstance(titles, list):
+        for t in titles:
+            if isinstance(t, dict):
+                if t.get("language") == "en":
+                    title = t.get("title", "Untitled")
+                    break
+                elif not title or title == "Untitled":
+                    title = t.get("title", "Untitled")
+            elif isinstance(t, str) and (not title or title == "Untitled"):
+                title = t
+    elif isinstance(titles, str):
+        title = titles
+
+    # Get artist/creator
+    artist = "Unknown Artist"
+    production = item.get("production", [])
+    if isinstance(production, list) and production:
+        prod = production[0]
+        if isinstance(prod, dict):
+            creator = prod.get("creator", "")
+            if creator:
+                artist = creator
+
+    # Get date
+    date_display = ""
+    if isinstance(production, list) and production:
+        prod = production[0]
+        if isinstance(prod, dict):
+            date_start = prod.get("date_start", "")
+            date_end = prod.get("date_end", "")
+            if date_start and date_end and date_start != date_end:
+                date_display = f"{date_start}-{date_end}"
+            elif date_start:
+                date_display = str(date_start)
+
+    # Get image URL
+    image_url = ""
+    thumbnail_url = ""
+    if item.get("image_thumbnail"):
+        thumbnail_url = item.get("image_thumbnail")
+    if item.get("image_native"):
+        image_url = item.get("image_native")
+    elif thumbnail_url:
+        # Use thumbnail as fallback, try to get larger version
+        image_url = thumbnail_url.replace("/thumb/", "/native/")
+
+    # Get description (notes can be list, string, or None)
+    description = ""
+    notes = item.get("notes")
+    if isinstance(notes, list):
+        for note in notes:
+            if isinstance(note, dict) and note.get("note"):
+                description = note.get("note")
+                break
+            elif isinstance(note, str):
+                description = note
+                break
+    elif isinstance(notes, str):
+        description = notes
+
+    # Get object number
+    object_number = item.get("object_number", "")
+
+    # Get techniques/medium
+    techniques = item.get("techniques", [])
+    medium = ", ".join(techniques) if techniques else ""
+
+    # Get dimensions
+    dimensions = item.get("dimensions_note", "")
+
+    return {
+        "external_id": object_number,
+        "museum": "smk",
+        "museum_name": "SMK - National Gallery of Denmark",
+        "title": title,
+        "artist": artist,
+        "date_display": date_display,
+        "medium": medium,
+        "dimensions": dimensions,
+        "description": _strip_html(description),
+        "image_url": image_url,
+        "thumbnail_url": thumbnail_url,
+        "museum_url": f"https://open.smk.dk/artwork/image/{object_number}" if object_number else "",
+        "metadata": {
+            "acquisition": item.get("acquisition", ""),
+            "collection": item.get("collection", ""),
+            "rights": item.get("rights", "")
+        }
+    }
+
+
+# Unified search function with parallel API calls
 def search_all(query, museum=None, page=1, limit=20):
-    """Search across all museums or a specific museum."""
+    """Search across all museums or a specific museum using parallel calls."""
     if museum == "aic":
         return aic_search(query, page, limit)
     elif museum == "rijks":
@@ -1064,48 +1241,47 @@ def search_all(query, museum=None, page=1, limit=20):
         return cleveland_search(query, page, limit)
     elif museum == "harvard":
         return harvard_search(query, page, limit)
-    elif museum == "europeana":
-        return europeana_search(query, page, limit)
-    elif museum == "smithsonian":
-        return smithsonian_search(query, page, limit)
+    elif museum == "smk":
+        return smk_search(query, page, limit)
     else:
-        # Search all museums and combine results
+        # Search all museums in parallel
         results = {"paintings": [], "total": 0, "page": page}
-        per_museum = max(limit // 7, 1)  # 7 museums now
+        per_museum = max(limit // 6, 1)  # 6 museums now
 
-        aic_results = aic_search(query, page, per_museum)
-        results["paintings"].extend(aic_results.get("paintings", []))
-        results["total"] += aic_results.get("total", 0)
+        # Create parallel tasks for all museum searches
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            futures = {
+                executor.submit(aic_search, query, page, per_museum): "aic",
+                executor.submit(rijks_search, query, page, per_museum): "rijks",
+                executor.submit(met_search, query, page, per_museum): "met",
+                executor.submit(cleveland_search, query, page, per_museum): "cleveland",
+                executor.submit(harvard_search, query, page, per_museum): "harvard",
+                executor.submit(smk_search, query, page, per_museum): "smk",
+            }
 
-        rijks_results = rijks_search(query, page, per_museum)
-        results["paintings"].extend(rijks_results.get("paintings", []))
-        results["total"] += rijks_results.get("total", 0)
-
-        met_results = met_search(query, page, per_museum)
-        results["paintings"].extend(met_results.get("paintings", []))
-        results["total"] += met_results.get("total", 0)
-
-        cleveland_results = cleveland_search(query, page, per_museum)
-        results["paintings"].extend(cleveland_results.get("paintings", []))
-        results["total"] += cleveland_results.get("total", 0)
-
-        harvard_results = harvard_search(query, page, per_museum)
-        results["paintings"].extend(harvard_results.get("paintings", []))
-        results["total"] += harvard_results.get("total", 0)
-
-        europeana_results = europeana_search(query, page, per_museum)
-        results["paintings"].extend(europeana_results.get("paintings", []))
-        results["total"] += europeana_results.get("total", 0)
-
-        smithsonian_results = smithsonian_search(query, page, per_museum)
-        results["paintings"].extend(smithsonian_results.get("paintings", []))
-        results["total"] += smithsonian_results.get("total", 0)
+            # Collect results with timeout to prevent hanging
+            for future in as_completed(futures, timeout=20):
+                try:
+                    museum_results = future.result(timeout=15)
+                    results["paintings"].extend(museum_results.get("paintings", []))
+                    results["total"] += museum_results.get("total", 0)
+                except Exception as e:
+                    # Log error but continue with other results
+                    museum_name = futures[future]
+                    print(f"Search failed for {museum_name}: {e}")
 
         return results
 
 
 def get_painting(museum, external_id):
-    """Get a single painting from a specific museum."""
+    """Get a single painting - checks local DB first, then API as fallback."""
+    # Try local database first (fast)
+    if USE_LOCAL_DB:
+        local_painting = get_painting_from_db(museum, external_id)
+        if local_painting:
+            return local_painting
+
+    # Fallback to API
     if museum == "aic":
         return aic_get_painting(external_id)
     elif museum == "rijks":
@@ -1116,8 +1292,6 @@ def get_painting(museum, external_id):
         return cleveland_get_painting(external_id)
     elif museum == "harvard":
         return harvard_get_painting(external_id)
-    elif museum == "europeana":
-        return europeana_get_painting(external_id)
-    elif museum == "smithsonian":
-        return smithsonian_get_painting(external_id)
+    elif museum == "smk":
+        return smk_get_painting(external_id)
     return None

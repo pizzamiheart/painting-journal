@@ -1,0 +1,38 @@
+{
+  "name": "Painting Journal",
+  "short_name": "Paintings",
+  "description": "A personal art exploration and journaling app",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#E8DFD4",
+  "theme_color": "#C5A55A",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "education"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Search Art",
+      "url": "/search",
+      "description": "Search for paintings"
+    },
+    {
+      "name": "My Collection",
+      "url": "/collection",
+      "description": "View your saved paintings"
+    }
+  ]
+}

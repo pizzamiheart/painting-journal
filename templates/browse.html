@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category.name }} - Painting Journal{% endblock %}
+
+{% block content %}
+<div class="browse-page" data-category-type="{{ category_type }}" data-category-key="{{ category_key }}"
+     {% if category.wall_color %}style="--wall-color: {{ category.wall_color }}"{% endif %}>
+
+    <header class="browse-header">
+        <a href="/explore" class="browse-back">&larr; Back to Explore</a>
+        <h1 class="browse-title">{{ category.name }}</h1>
+        {% if category.years %}
+        <p class="browse-years">{{ category.years }}</p>
+        {% endif %}
+        <p class="browse-description">{{ category.description }}</p>
+        {% if category.artists %}
+        <div class="browse-artists">
+            <span class="browse-artists__label">Featured artists:</span>
+            {% for artist in category.artists %}
+            <a href="/explore/artist/{{ artist }}" class="browse-artists__link">{{ artist }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </header>
+
+    <section class="browse-results">
+        <div class="painting-grid" id="paintings-grid">
+            <div class="loading">Loading paintings...</div>
+        </div>
+    </section>
+
+    <div class="load-more" id="load-more" style="display: none;">
+        <button class="btn" id="load-more-btn">Load More</button>
+    </div>
+</div>
+{% endblock %}

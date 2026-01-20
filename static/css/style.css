@@ -1,36 +1,66 @@
 /*
  * Painting Journal - Gallery Aesthetic
- * A clean, contemplative design that lets the art breathe
+ * Quiet, elegant, unhurried. The art is the star.
  */
 
+/* ==============================================
+   FOUNDATIONS
+   ============================================== */
+
 :root {
-    --color-bg: #fafafa;
-    --color-surface: #ffffff;
-    --color-text: #1a1a1a;
-    --color-text-secondary: #666666;
-    --color-text-muted: #999999;
-    --color-border: #e5e5e5;
-    --color-border-light: #f0f0f0;
-    --color-accent: #2c2c2c;
-    --color-accent-hover: #000000;
-    --color-favorite: #c41e3a;
-    --color-tag-bg: #f5f5f5;
+    /* Warm earth-tone palette - rich gallery walls */
+    --color-bg: #E8DFD4;
+    --color-bg-subtle: #DED4C7;
+    --color-bg-warm: #D4C9BA;
+    --color-surface: #F5F0EB;
 
-    --font-serif: 'Cormorant Garamond', 'Georgia', serif;
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* Gold frame colors */
+    --color-gold: #C5A55A;
+    --color-gold-light: #D4BC7C;
+    --color-gold-dark: #9A7B3C;
 
-    --spacing-xs: 0.5rem;
-    --spacing-sm: 1rem;
-    --spacing-md: 1.5rem;
-    --spacing-lg: 2.5rem;
-    --spacing-xl: 4rem;
-    --spacing-2xl: 6rem;
+    /* Text hierarchy */
+    --color-text: #2D2926;
+    --color-text-secondary: #5C5552;
+    --color-text-muted: #8A8580;
 
-    --max-width: 1400px;
-    --max-width-narrow: 900px;
+    /* Earth tone accents */
+    --color-terracotta: #C4785C;
+    --color-terracotta-dark: #A8604A;
+    --color-ochre: #C9A66B;
+    --color-sage: #7A8B6E;
+    --color-sage-light: #E8EDE5;
+
+    /* Primary accent (terracotta) */
+    --color-accent: #C4785C;
+    --color-accent-hover: #A8604A;
+    --color-accent-light: #E8D5CE;
+
+    /* Borders */
+    --color-border: #E5DED6;
+    --color-border-light: #F0EBE5;
+
+    /* Favorite state */
+    --color-favorite: #C4785C;
+
+    /* Typography */
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* Spacing - tighter, more compact */
+    --spacing-xs: 0.375rem;
+    --spacing-sm: 0.75rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+
+    /* Layout */
+    --max-width: 1200px;
+    --max-width-narrow: 800px;
 }
 
-/* Reset & Base */
+/* Reset */
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -38,40 +68,33 @@
 html {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 
 body {
     margin: 0;
     padding: 0;
     font-family: var(--font-sans);
-    font-size: 1rem;
-    line-height: 1.6;
+    font-size: 0.9375rem;
+    line-height: 1.7;
     color: var(--color-text);
     background-color: var(--color-bg);
 }
 
-/* Typography */
+/* ==============================================
+   TYPOGRAPHY
+   ============================================== */
+
 h1, h2, h3, h4 {
     font-family: var(--font-serif);
     font-weight: 400;
-    line-height: 1.2;
+    line-height: 1.25;
     margin: 0 0 var(--spacing-sm) 0;
+    color: var(--color-text);
 }
 
-h1 {
-    font-size: 2.5rem;
-    letter-spacing: -0.02em;
-}
-
-h2 {
-    font-size: 1.75rem;
-    letter-spacing: -0.01em;
-}
-
-h3 {
-    font-size: 1.25rem;
-}
+h1 { font-size: 2.25rem; }
+h2 { font-size: 1.625rem; }
+h3 { font-size: 1.25rem; }
 
 p {
     margin: 0 0 var(--spacing-sm) 0;
@@ -80,30 +103,34 @@ p {
 a {
     color: var(--color-text);
     text-decoration: none;
-    border-bottom: 1px solid var(--color-border);
-    transition: border-color 0.2s ease;
+    transition: color 0.2s ease;
 }
 
 a:hover {
-    border-color: var(--color-text);
+    color: var(--color-accent);
 }
 
-/* Layout */
+/* ==============================================
+   LAYOUT
+   ============================================== */
+
 .container {
     max-width: var(--max-width);
     margin: 0 auto;
-    padding: 0 var(--spacing-md);
+    padding: 0 var(--spacing-lg);
 }
 
 .container--narrow {
     max-width: var(--max-width-narrow);
 }
 
-/* Header */
+/* ==============================================
+   HEADER - Minimal, quiet
+   ============================================== */
+
 .site-header {
     padding: var(--spacing-lg) 0;
-    border-bottom: 1px solid var(--color-border-light);
-    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .site-header__inner {
@@ -114,15 +141,19 @@ a:hover {
 
 .site-title {
     font-family: var(--font-serif);
-    font-size: 1.5rem;
+    font-size: 1.125rem;
     font-weight: 400;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
     margin: 0;
 }
 
 .site-title a {
-    border: none;
+    color: var(--color-text);
+}
+
+.site-title a:hover {
+    color: var(--color-accent);
 }
 
 .site-nav {
@@ -131,12 +162,9 @@ a:hover {
 }
 
 .site-nav a {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     letter-spacing: 0.05em;
-    text-transform: uppercase;
-    border: none;
-    color: var(--color-text-secondary);
-    transition: color 0.2s ease;
+    color: var(--color-text-muted);
 }
 
 .site-nav a:hover,
@@ -144,236 +172,248 @@ a:hover {
     color: var(--color-text);
 }
 
-/* Main Content */
+/* ==============================================
+   MAIN CONTENT
+   ============================================== */
+
 main {
     padding: var(--spacing-xl) 0;
-    min-height: calc(100vh - 200px);
+    min-height: calc(100vh - 180px);
 }
 
-/* Hero / Painting of the Day */
-.hero {
-    text-align: center;
-    padding: var(--spacing-xl) 0 var(--spacing-2xl);
-}
+/* ==============================================
+   BUTTONS - Ghost style, text-like
+   ============================================== */
 
-.hero__label {
-    font-size: 0.75rem;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    margin-bottom: var(--spacing-md);
-}
-
-.hero__painting {
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-.hero__image-container {
-    margin-bottom: var(--spacing-lg);
-}
-
-.hero__image {
-    max-width: 100%;
-    max-height: 70vh;
-    object-fit: contain;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.1);
-}
-
-.hero__title {
-    font-size: 2rem;
-    margin-bottom: var(--spacing-xs);
-}
-
-.hero__artist {
-    font-size: 1.125rem;
+.btn {
+    display: inline-block;
+    padding: 0.625rem 1.25rem;
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    letter-spacing: 0.03em;
     color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-xs);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.hero__meta {
+.btn:hover {
+    color: var(--color-terracotta);
+    border-color: var(--color-terracotta);
+}
+
+.btn--primary {
+    background: var(--color-terracotta);
+    color: #fff;
+    border-color: var(--color-terracotta);
+}
+
+.btn--primary:hover {
+    background: var(--color-terracotta-dark);
+    border-color: var(--color-terracotta-dark);
+}
+
+.btn--favorite {
+    border-color: var(--color-terracotta);
+    color: var(--color-terracotta);
+}
+
+.btn--favorite:hover {
+    background: var(--color-accent-light);
+}
+
+.btn--favorite.is-favorite {
+    background: var(--color-terracotta);
+    border-color: var(--color-terracotta);
+    color: #fff;
+}
+
+/* Text link style */
+.text-link {
     font-size: 0.875rem;
-    color: var(--color-text-muted);
-}
-
-.hero__empty {
-    padding: var(--spacing-2xl) 0;
-}
-
-.hero__empty p {
     color: var(--color-text-secondary);
-    font-size: 1.125rem;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 1px;
 }
 
-/* Search */
-.search-section {
-    max-width: 600px;
-    margin: 0 auto var(--spacing-xl);
-    text-align: center;
+.text-link:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
 }
 
-.search-form {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
-}
+/* ==============================================
+   PAINTING GRID
+   ============================================== */
 
-.search-input {
-    flex: 1;
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: 1rem;
-    font-family: var(--font-sans);
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    transition: border-color 0.2s ease;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: var(--color-text);
-}
-
-.search-input::placeholder {
-    color: var(--color-text-muted);
-}
-
-.search-button {
-    padding: var(--spacing-sm) var(--spacing-lg);
-    font-size: 0.875rem;
-    font-family: var(--font-sans);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    background: var(--color-accent);
-    color: var(--color-surface);
-    border: none;
-    cursor: pointer;
-    transition: background 0.2s ease;
-}
-
-.search-button:hover {
-    background: var(--color-accent-hover);
-}
-
-.search-filters {
-    display: flex;
-    justify-content: center;
-    gap: var(--spacing-md);
-}
-
-.filter-select {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: 0.875rem;
-    font-family: var(--font-sans);
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    cursor: pointer;
-}
-
-/* Painting Grid */
 .painting-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--spacing-lg);
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--spacing-xl);
 }
 
+/* ==============================================
+   PAINTING CARD - Minimal chrome
+   ============================================== */
+
 .painting-card {
-    background: var(--color-surface);
     cursor: pointer;
     transition: transform 0.2s ease;
 }
 
 .painting-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-2px);
 }
 
 .painting-card__image-container {
     aspect-ratio: 1;
     overflow: hidden;
-    background: var(--color-border-light);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: var(--color-bg-subtle);
+    margin-bottom: var(--spacing-sm);
+    /* Gold frame effect */
+    border: 4px solid var(--color-gold);
+    box-shadow:
+        inset 0 0 0 1px var(--color-gold-dark),
+        inset 0 0 0 2px var(--color-gold-light),
+        0 2px 8px rgba(0,0,0,0.15),
+        0 4px 16px rgba(0,0,0,0.1);
+}
+
+.painting-card:hover .painting-card__image-container {
+    box-shadow:
+        inset 0 0 0 1px var(--color-gold-dark),
+        inset 0 0 0 2px var(--color-gold-light),
+        0 4px 12px rgba(0,0,0,0.2),
+        0 8px 24px rgba(0,0,0,0.15);
 }
 
 .painting-card__image {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.painting-card__image.loaded {
+    opacity: 1;
 }
 
 .painting-card__info {
-    padding: var(--spacing-md);
+    text-align: center;
 }
 
 .painting-card__title {
     font-family: var(--font-serif);
-    font-size: 1.125rem;
-    margin-bottom: var(--spacing-xs);
+    font-size: 1rem;
     line-height: 1.3;
+    margin-bottom: 0.25rem;
+    color: var(--color-text);
 }
 
 .painting-card__artist {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: 0.25rem;
 }
 
 .painting-card__museum {
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     color: var(--color-text-muted);
-    text-transform: uppercase;
     letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
-/* Painting Detail */
+/* ==============================================
+   PAINTING DETAIL PAGE
+   ============================================== */
+
 .painting-detail {
-    max-width: 1200px;
+    max-width: 1100px;
     margin: 0 auto;
 }
 
 .painting-detail__main {
     display: grid;
-    grid-template-columns: 1fr 400px;
-    gap: var(--spacing-xl);
+    grid-template-columns: 1fr 300px;
+    gap: var(--spacing-lg);
     align-items: start;
 }
 
 @media (max-width: 900px) {
     .painting-detail__main {
         grid-template-columns: 1fr;
+        gap: var(--spacing-md);
     }
 }
 
 .painting-detail__image-container {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
 }
 
 .painting-detail__image {
     max-width: 100%;
-    max-height: 80vh;
+    max-height: 75vh;
     object-fit: contain;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.1);
+    /* Gold frame effect */
+    border: 6px solid var(--color-gold);
+    box-shadow:
+        inset 0 0 0 1px var(--color-gold-dark),
+        inset 0 0 0 3px var(--color-gold-light),
+        0 4px 16px rgba(0,0,0,0.2),
+        0 8px 32px rgba(0,0,0,0.15);
 }
 
+/* Click hint */
+.painting-detail__image-container .click-hint {
+    position: absolute;
+    bottom: var(--spacing-md);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.painting-detail__image-container:hover .click-hint {
+    opacity: 1;
+}
+
+/* Sidebar - Museum placard style */
 .painting-detail__sidebar {
     position: sticky;
     top: var(--spacing-lg);
 }
 
 .painting-detail__title {
-    font-size: 2rem;
-    margin-bottom: var(--spacing-xs);
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .painting-detail__artist {
-    font-size: 1.25rem;
+    font-size: 1rem;
     color: var(--color-text-secondary);
     margin-bottom: var(--spacing-md);
 }
 
+.artist-link {
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.artist-link:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
 .painting-detail__meta {
-    margin-bottom: var(--spacing-lg);
-    padding-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
     border-bottom: 1px solid var(--color-border-light);
 }
 
@@ -382,8 +422,8 @@ main {
 }
 
 .painting-detail__meta-label {
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-text-muted);
     display: block;
@@ -391,71 +431,43 @@ main {
 }
 
 .painting-detail__meta-value {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     color: var(--color-text-secondary);
 }
 
 .painting-detail__description {
-    margin-bottom: var(--spacing-lg);
-    padding-bottom: var(--spacing-lg);
-    border-bottom: 1px solid var(--color-border-light);
+    max-width: 800px;
+    margin: var(--spacing-md) auto var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: var(--color-surface);
+    border-left: 3px solid var(--color-ochre);
 }
 
 .painting-detail__description p {
+    font-size: 1rem;
     color: var(--color-text-secondary);
-    line-height: 1.7;
+    line-height: 1.8;
+    margin: 0;
 }
 
 /* Actions */
 .painting-actions {
     display: flex;
     gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
 }
 
-.btn {
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: 0.875rem;
-    font-family: var(--font-sans);
-    letter-spacing: 0.03em;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-}
+/* ==============================================
+   TAGS - Simple, quiet
+   ============================================== */
 
-.btn:hover {
-    border-color: var(--color-text);
-}
-
-.btn--primary {
-    background: var(--color-accent);
-    color: var(--color-surface);
-    border-color: var(--color-accent);
-}
-
-.btn--primary:hover {
-    background: var(--color-accent-hover);
-    border-color: var(--color-accent-hover);
-}
-
-.btn--favorite.is-favorite {
-    background: var(--color-favorite);
-    border-color: var(--color-favorite);
-    color: var(--color-surface);
-}
-
-/* Tags */
 .tags-section {
     margin-bottom: var(--spacing-lg);
 }
 
 .tags-section__title {
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-text-muted);
     margin-bottom: var(--spacing-sm);
@@ -470,17 +482,18 @@ main {
 .tag {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 12px;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
     font-size: 0.8125rem;
-    background: var(--color-tag-bg);
+    background: var(--color-sage-light);
+    color: var(--color-sage);
     border-radius: 2px;
 }
 
 .tag__remove {
     cursor: pointer;
     opacity: 0.5;
-    transition: opacity 0.2s ease;
+    font-size: 0.875rem;
 }
 
 .tag__remove:hover {
@@ -495,74 +508,114 @@ main {
 
 .tag-input input {
     flex: 1;
-    padding: var(--spacing-xs);
-    font-size: 0.875rem;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.8125rem;
+    font-family: var(--font-sans);
     border: 1px solid var(--color-border);
-    background: var(--color-surface);
+    background: transparent;
 }
 
 .tag-input input:focus {
     outline: none;
-    border-color: var(--color-text);
+    border-color: var(--color-text-muted);
 }
 
-/* Journal */
+/* Tag suggestions */
+.tag-suggestions {
+    margin-top: var(--spacing-sm);
+}
+
+.tag-suggestions__label {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-xs);
+}
+
+.tag-suggestions__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.tag-suggestion {
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-family: var(--font-sans);
+    background: transparent;
+    border: 1px solid var(--color-sage);
+    color: var(--color-sage);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-radius: 2px;
+}
+
+.tag-suggestion:hover {
+    background: var(--color-sage);
+    border-color: var(--color-sage);
+    color: #fff;
+}
+
+/* ==============================================
+   JOURNAL - Notebook feel
+   ============================================== */
+
 .journal-section {
-    margin-top: var(--spacing-xl);
-    padding-top: var(--spacing-xl);
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
     border-top: 1px solid var(--color-border-light);
 }
 
 .journal-section__title {
     font-family: var(--font-serif);
-    font-size: 1.5rem;
-    margin-bottom: var(--spacing-lg);
+    font-size: 1rem;
+    margin-bottom: var(--spacing-sm);
 }
 
 .journal-form {
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: var(--spacing-sm);
 }
 
 .journal-textarea {
     width: 100%;
-    min-height: 150px;
-    padding: var(--spacing-md);
+    min-height: 80px;
+    padding: var(--spacing-sm);
     font-family: var(--font-sans);
-    font-size: 1rem;
-    line-height: 1.7;
+    font-size: 0.875rem;
+    line-height: 1.6;
     border: 1px solid var(--color-border);
-    background: var(--color-surface);
+    background: transparent;
     resize: vertical;
     margin-bottom: var(--spacing-sm);
 }
 
 .journal-textarea:focus {
     outline: none;
-    border-color: var(--color-text);
+    border-color: var(--color-text-muted);
 }
 
 .journal-entries {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-lg);
+    gap: var(--spacing-md);
 }
 
 .journal-entry {
-    padding: var(--spacing-lg);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border-light);
+    padding: var(--spacing-md);
+    border-left: 2px solid var(--color-border);
 }
 
 .journal-entry__date {
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-text-muted);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
 }
 
 .journal-entry__text {
-    font-size: 1rem;
+    font-size: 0.9375rem;
     line-height: 1.8;
     color: var(--color-text-secondary);
     white-space: pre-wrap;
@@ -571,10 +624,602 @@ main {
 .journal-entry__actions {
     display: flex;
     gap: var(--spacing-sm);
-    margin-top: var(--spacing-md);
+    margin-top: var(--spacing-sm);
 }
 
-/* Collection Filters */
+/* Sidebar journal - compact */
+.journal-section--sidebar {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+}
+
+.journal-section--sidebar .journal-section__title {
+    font-size: 1rem;
+}
+
+.journal-section--sidebar .journal-textarea {
+    min-height: 80px;
+}
+
+/* ==============================================
+   MORE BY ARTIST
+   ============================================== */
+
+.more-by-artist {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.more-by-artist__title {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text-secondary);
+}
+
+.more-by-artist__grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.more-by-artist__grid .painting-card__image-container {
+    aspect-ratio: 1;
+}
+
+.more-by-artist__grid .painting-card__image {
+    object-fit: cover;
+}
+
+.more-by-artist__grid .painting-card__info {
+    padding: var(--spacing-xs) 0;
+}
+
+.more-by-artist__grid .painting-card__title {
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.more-by-artist__grid .painting-card__artist,
+.more-by-artist__grid .painting-card__museum {
+    display: none;
+}
+
+.more-by-artist__link {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.more-by-artist__link:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
+/* ==============================================
+   LIGHTBOX
+   ============================================== */
+
+.lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(250, 250, 248, 0.98);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    cursor: zoom-out;
+}
+
+.lightbox.is-active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.lightbox__image {
+    max-width: 92vw;
+    max-height: 92vh;
+    object-fit: contain;
+    box-shadow: 0 8px 60px rgba(0, 0, 0, 0.12);
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+
+.lightbox.is-active .lightbox__image {
+    transform: scale(1);
+}
+
+.lightbox__close {
+    position: absolute;
+    top: var(--spacing-lg);
+    right: var(--spacing-lg);
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.lightbox__close:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
+.lightbox__info {
+    position: absolute;
+    bottom: var(--spacing-lg);
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.lightbox__title {
+    font-family: var(--font-serif);
+    font-size: 1.125rem;
+    margin-bottom: 0.25rem;
+}
+
+.lightbox__artist {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+}
+
+.lightbox__hint {
+    position: absolute;
+    bottom: var(--spacing-md);
+    right: var(--spacing-lg);
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+}
+
+/* ==============================================
+   EXPLORE PAGE
+   ============================================== */
+
+.explore-page {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* Welcome */
+.explore-welcome {
+    text-align: center;
+    padding: var(--spacing-xl) 0 var(--spacing-2xl);
+}
+
+.explore-welcome__title {
+    font-family: var(--font-serif);
+    font-size: 2.5rem;
+    font-weight: 400;
+    margin-bottom: var(--spacing-xs);
+}
+
+.explore-welcome__subtitle {
+    font-size: 1rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+/* Featured Artist */
+.explore-featured {
+    text-align: center;
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+    background: var(--color-accent-light);
+    border-left: 3px solid var(--color-terracotta);
+}
+
+.explore-featured__label {
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-md);
+}
+
+.explore-featured__name {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+.explore-featured__bio {
+    color: var(--color-text-secondary);
+    max-width: 500px;
+    margin: 0 auto var(--spacing-md);
+    font-size: 0.9375rem;
+}
+
+/* Weekly Spotlight */
+.explore-spotlight {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.explore-spotlight__label {
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+}
+
+.explore-spotlight__card {
+    text-align: center;
+    padding: var(--spacing-xl);
+    background: linear-gradient(135deg, #F9F3E8 0%, #F5EFE0 100%);
+    border-left: 3px solid var(--color-ochre);
+}
+
+.explore-spotlight__era {
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+.explore-spotlight__years {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    letter-spacing: 0.1em;
+    margin-bottom: var(--spacing-sm);
+}
+
+.explore-spotlight__desc {
+    color: var(--color-text-secondary);
+    max-width: 500px;
+    margin: 0 auto var(--spacing-md);
+    font-size: 0.9375rem;
+}
+
+/* Surprise Me */
+.explore-surprise {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+}
+
+.surprise-btn {
+    background: var(--color-ochre);
+    border: none;
+    padding: var(--spacing-md) var(--spacing-xl);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #fff;
+}
+
+.surprise-btn:hover {
+    background: #B8954F;
+    transform: translateY(-1px);
+}
+
+.surprise-btn__text {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.surprise-btn__subtext {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.85;
+}
+
+.surprise-btn:hover .surprise-btn__subtext {
+    opacity: 1;
+}
+
+/* Explore Sections */
+.explore-section {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.explore-section__title {
+    font-family: var(--font-serif);
+    font-size: 1.375rem;
+    text-align: center;
+    margin-bottom: 0.25rem;
+}
+
+.explore-section__subtitle {
+    text-align: center;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.875rem;
+}
+
+/* Category Grid */
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.category-card {
+    padding: var(--spacing-lg);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: block;
+}
+
+.category-card:hover {
+    border-color: var(--color-terracotta);
+    background: var(--color-bg-subtle);
+}
+
+.category-card--era {
+    border-left-width: 3px;
+    border-left-color: var(--card-accent, var(--color-accent));
+}
+
+.category-card__name {
+    font-family: var(--font-serif);
+    font-size: 1.125rem;
+    margin-bottom: 0.25rem;
+    color: var(--color-text);
+}
+
+.category-card__years {
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+    letter-spacing: 0.08em;
+    margin-bottom: var(--spacing-sm);
+    text-transform: uppercase;
+}
+
+.category-card__description {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.category-card__icon {
+    display: none;
+}
+
+/* Theme Grid */
+.category-grid--themes .category-card {
+    text-align: center;
+}
+
+/* Mood Grid */
+.mood-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    justify-content: center;
+}
+
+.mood-btn {
+    background: transparent;
+    border: 1px solid var(--color-sage);
+    padding: 0.5rem 1.25rem;
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: var(--color-sage);
+}
+
+.mood-btn:hover {
+    background: var(--color-sage);
+    border-color: var(--color-sage);
+    color: #fff;
+}
+
+/* Search Fallback */
+.explore-search {
+    text-align: center;
+    padding: var(--spacing-xl) 0;
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--spacing-xl);
+}
+
+.explore-search p {
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.875rem;
+}
+
+/* ==============================================
+   BROWSE PAGE
+   ============================================== */
+
+.browse-page {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.browse-header {
+    text-align: center;
+    padding: var(--spacing-md) 0 var(--spacing-xl);
+}
+
+.browse-back {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    display: inline-block;
+    margin-bottom: var(--spacing-md);
+}
+
+.browse-back:hover {
+    color: var(--color-text);
+}
+
+.browse-title {
+    font-family: var(--font-serif);
+    font-size: 2rem;
+    margin-bottom: 0.25rem;
+}
+
+.browse-years {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    letter-spacing: 0.1em;
+    margin-bottom: var(--spacing-md);
+}
+
+.browse-description {
+    font-size: 0.9375rem;
+    color: var(--color-text-secondary);
+    max-width: 550px;
+    margin: 0 auto var(--spacing-md);
+}
+
+.browse-artists {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.browse-artists__link {
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.browse-artists__link:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
+.browse-results {
+    padding: var(--spacing-xl) 0;
+    min-height: 400px;
+}
+
+/* ==============================================
+   ARTIST PAGE
+   ============================================== */
+
+.artist-page {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.artist-header {
+    text-align: center;
+    padding: var(--spacing-md) 0 var(--spacing-xl);
+}
+
+.artist-title {
+    font-family: var(--font-serif);
+    font-size: 2rem;
+}
+
+.artist-works {
+    min-height: 400px;
+    padding: var(--spacing-md) 0;
+}
+
+/* ==============================================
+   SEARCH PAGE
+   ============================================== */
+
+.search-section {
+    max-width: 550px;
+    margin: 0 auto var(--spacing-xl);
+    text-align: center;
+}
+
+.search-form {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.search-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    font-family: var(--font-sans);
+    border: 1px solid var(--color-border);
+    background: transparent;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--color-text-muted);
+}
+
+.search-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.search-button {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.8125rem;
+    font-family: var(--font-sans);
+    letter-spacing: 0.05em;
+    background: var(--color-text);
+    color: var(--color-bg);
+    border: 1px solid var(--color-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.search-button:hover {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+.search-filters {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+}
+
+.filter-select {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    font-family: var(--font-sans);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    cursor: pointer;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--color-text-muted);
+}
+
+/* Spelling Suggestion */
+.spelling-suggestion {
+    text-align: center;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    background: var(--color-bg-subtle);
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+}
+
+.spelling-suggestion .suggestion-link {
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.spelling-suggestion .suggestion-link:hover {
+    border-color: var(--color-text-muted);
+}
+
+/* ==============================================
+   COLLECTION PAGE
+   ============================================== */
+
 .collection-header {
     display: flex;
     justify-content: space-between;
@@ -586,7 +1231,7 @@ main {
 
 .collection-title {
     font-family: var(--font-serif);
-    font-size: 2rem;
+    font-size: 1.75rem;
 }
 
 .collection-filters {
@@ -595,53 +1240,95 @@ main {
     flex-wrap: wrap;
 }
 
-/* Loading & States */
+/* ==============================================
+   LOADING STATES
+   ============================================== */
+
 .loading {
     text-align: center;
     padding: var(--spacing-2xl);
     color: var(--color-text-muted);
+    font-family: var(--font-serif);
+    font-style: italic;
 }
 
-.loading::after {
+/* Simple loading indicator */
+.loading::before {
     content: '';
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--color-border);
-    border-top-color: var(--color-text);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin-left: var(--spacing-sm);
-    vertical-align: middle;
+    display: block;
+    width: 40px;
+    height: 1px;
+    background: var(--color-border);
+    margin: 0 auto var(--spacing-md);
+    animation: loadingPulse 1.5s ease-in-out infinite;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
+@keyframes loadingPulse {
+    0%, 100% { opacity: 0.3; width: 40px; }
+    50% { opacity: 1; width: 80px; }
 }
 
-/* Spelling Suggestion */
-.spelling-suggestion {
+/* Skeleton Grid */
+.skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-xl);
+}
+
+@media (max-width: 900px) {
+    .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+    .skeleton-grid { grid-template-columns: 1fr; }
+}
+
+.skeleton-card__frame {
+    aspect-ratio: 1;
+    background: var(--color-bg-subtle);
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+    margin-bottom: var(--spacing-sm);
+}
+
+.skeleton-card__placard {
     text-align: center;
-    padding: var(--spacing-md) var(--spacing-lg);
-    margin-bottom: var(--spacing-md);
-    background: var(--color-tag-bg);
-    border-radius: 4px;
-    font-size: 1rem;
-    color: var(--color-text-secondary);
 }
 
-.spelling-suggestion .suggestion-link {
-    color: var(--color-accent);
-    font-weight: 600;
-    text-decoration: none;
-    border-bottom: 1px solid var(--color-accent);
+.skeleton-card__title {
+    height: 14px;
+    width: 70%;
+    margin: 0 auto var(--spacing-xs);
+    background: var(--color-bg-subtle);
+    animation: skeletonPulse 1.5s ease-in-out infinite 0.1s;
 }
 
-.spelling-suggestion .suggestion-link:hover {
-    color: var(--color-accent-hover);
-    border-bottom-color: var(--color-accent-hover);
+.skeleton-card__artist {
+    height: 12px;
+    width: 50%;
+    margin: 0 auto;
+    background: var(--color-bg-subtle);
+    animation: skeletonPulse 1.5s ease-in-out infinite 0.2s;
 }
 
+@keyframes skeletonPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.7; }
+}
+
+/* Inline loading */
+.loading--inline {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    font-style: italic;
+}
+
+.loading--inline::before {
+    display: none;
+}
+
+/* Empty State */
 .empty-state {
     text-align: center;
     padding: var(--spacing-2xl);
@@ -649,7 +1336,7 @@ main {
 }
 
 .empty-state p {
-    font-size: 1.125rem;
+    font-size: 0.9375rem;
     margin-bottom: var(--spacing-md);
 }
 
@@ -659,25 +1346,106 @@ main {
     margin-top: var(--spacing-xl);
 }
 
-/* Footer */
-.site-footer {
-    padding: var(--spacing-xl) 0;
-    border-top: 1px solid var(--color-border-light);
+/* ==============================================
+   ERROR PAGE
+   ============================================== */
+
+.error-page {
     text-align: center;
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
+    padding: var(--spacing-2xl) 0;
 }
 
-/* Responsive */
+.error-page h1 {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.error-page p {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* ==============================================
+   FOOTER
+   ============================================== */
+
+.site-footer {
+    padding: var(--spacing-xl) 0;
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+}
+
+/* ==============================================
+   HERO / PAINTING OF THE DAY
+   ============================================== */
+
+.hero {
+    text-align: center;
+    padding: var(--spacing-xl) 0 var(--spacing-2xl);
+}
+
+.hero__label {
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-md);
+}
+
+.hero__painting {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.hero__image-container {
+    margin-bottom: var(--spacing-lg);
+}
+
+.hero__image {
+    max-width: 100%;
+    max-height: 65vh;
+    object-fit: contain;
+}
+
+.hero__title {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.hero__artist {
+    font-size: 1rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.hero__meta {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+.hero__empty {
+    padding: var(--spacing-2xl) 0;
+}
+
+.hero__empty p {
+    color: var(--color-text-secondary);
+}
+
+/* ==============================================
+   RESPONSIVE
+   ============================================== */
+
 @media (max-width: 768px) {
     :root {
-        --spacing-xl: 2rem;
-        --spacing-2xl: 3rem;
+        --spacing-xl: 2.5rem;
+        --spacing-2xl: 4rem;
     }
 
-    h1 {
-        font-size: 1.75rem;
-    }
+    h1 { font-size: 1.75rem; }
+    h2 { font-size: 1.375rem; }
 
     .site-header__inner {
         flex-direction: column;
@@ -689,17 +1457,38 @@ main {
     }
 
     .painting-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: var(--spacing-md);
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: var(--spacing-lg);
     }
 
     .collection-header {
         flex-direction: column;
         align-items: flex-start;
     }
+
+    .explore-welcome__title {
+        font-size: 1.75rem;
+    }
+
+    .category-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .more-by-artist__grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
-/* Utility Classes */
+@media (max-width: 1100px) {
+    .more-by-artist__grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ==============================================
+   UTILITIES
+   ============================================== */
+
 .visually-hidden {
     position: absolute;
     width: 1px;
@@ -717,4 +1506,22 @@ main {
 
 .mb-0 {
     margin-bottom: 0;
+}
+
+/* Fade in animation for cards */
+.painting-card {
+    animation: fadeIn 0.4s ease-out;
+    animation-fill-mode: both;
+}
+
+.painting-grid .painting-card:nth-child(1) { animation-delay: 0.05s; }
+.painting-grid .painting-card:nth-child(2) { animation-delay: 0.1s; }
+.painting-grid .painting-card:nth-child(3) { animation-delay: 0.15s; }
+.painting-grid .painting-card:nth-child(4) { animation-delay: 0.2s; }
+.painting-grid .painting-card:nth-child(5) { animation-delay: 0.25s; }
+.painting-grid .painting-card:nth-child(6) { animation-delay: 0.3s; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
