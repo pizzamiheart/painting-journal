@@ -1,8 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Explore - Painting Journal{% endblock %}
+{% block title %}Search - Painting Journal{% endblock %}
 
 {% block content %}
+<script>
+    // Protect search page - require login
+    if (!localStorage.getItem('auth_token')) {
+        window.location.href = '/login';
+    }
+</script>
+
 <section class="search-section">
     <h1 class="visually-hidden">Search Paintings</h1>
     <form id="search-form" class="search-form">

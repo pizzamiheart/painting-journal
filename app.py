@@ -102,8 +102,10 @@ def api_get_user():
 # Page routes
 @app.route('/')
 def home():
-    """Redirect to explore page - the new home."""
-    return redirect(url_for('explore_page'))
+    """Show landing page for guests, redirect to explore for logged-in users."""
+    # Check if user is authenticated via token in cookie or session
+    # For now, we'll show landing and let JS handle redirect if logged in
+    return render_template('landing.html')
 
 
 @app.route('/search')
@@ -225,6 +227,33 @@ def api_surprise():
     if painting:
         return jsonify(painting)
     return jsonify({"error": "Could not fetch a painting"}), 500
+
+
+@app.route('/api/explore/preview')
+def api_preview():
+    """Get a curated preview of paintings for guests (not logged in)."""
+    # Get random paintings from different categories for preview
+    paintings = []
+
+    # Fetch from a few different searches to get variety
+    preview_terms = ['portrait', 'landscape', 'still life', 'sea', 'garden']
+    import random
+    random.shuffle(preview_terms)
+
+    for term in preview_terms[:3]:
+        results = db.search_paintings(term, None, 1, 10)
+        paintings.extend(results.get('paintings', []))
+
+    # Shuffle and limit to 30
+    random.shuffle(paintings)
+    return jsonify({"paintings": paintings[:30]})
+
+
+@app.route('/api/stats')
+def api_stats():
+    """Get collection statistics (total paintings, artists, museums)."""
+    stats = db.get_collection_stats()
+    return jsonify(stats)
 
 
 @app.route('/api/explore/artist/<artist_name>')

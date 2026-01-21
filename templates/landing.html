@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painting Journal - Your Personal Art Collection</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="A personal art exploration and journaling app">
+    <meta name="theme-color" content="#C5A55A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Paintings">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-gold: #C5A55A;
+            --color-gold-light: #D4BC7C;
+            --color-gold-dark: #9A7B3C;
+            --color-surface: #F5F0EB;
+            --color-text: #2D2926;
+            --color-text-secondary: #5C5552;
+            --font-serif: 'Cormorant Garamond', Georgia, serif;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: var(--font-sans);
+            color: var(--color-text);
+        }
+
+        .landing {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 12px;
+        }
+
+        /* Golden frame border */
+        .landing::before {
+            content: '';
+            position: absolute;
+            inset: 12px;
+            border: 5px solid var(--color-gold);
+            box-shadow:
+                inset 0 0 0 1px var(--color-gold-dark),
+                inset 0 0 0 2px var(--color-gold-light),
+                0 0 0 1px var(--color-gold-dark);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Background painting - served locally for fast loading */
+        .landing__bg {
+            position: absolute;
+            inset: 0;
+            background-image: url('/static/images/kroyer-skagen.jpg');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.55;
+        }
+
+        /* Gradient overlay for readability */
+        .landing__overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to bottom,
+                rgba(232, 223, 212, 0.3) 0%,
+                rgba(232, 223, 212, 0.5) 50%,
+                rgba(232, 223, 212, 0.7) 100%
+            );
+        }
+
+        .landing__content {
+            position: relative;
+            z-index: 5;
+            text-align: center;
+            max-width: 480px;
+            padding: 2.5rem 2rem;
+            /* Warm sandy tone inspired by Skagen beach scenes */
+            background: linear-gradient(
+                145deg,
+                rgba(228, 218, 200, 0.97) 0%,
+                rgba(222, 210, 190, 0.97) 50%,
+                rgba(215, 203, 182, 0.97) 100%
+            );
+            border-radius: 4px;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            /* Subtle paper texture effect */
+            background-image:
+                linear-gradient(145deg, rgba(228, 218, 200, 0.97) 0%, rgba(215, 203, 182, 0.97) 100%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+            background-blend-mode: normal, soft-light;
+        }
+
+        .landing__title {
+            font-family: var(--font-serif);
+            font-size: 2.75rem;
+            font-weight: 500;
+            margin: 0 0 0.5rem 0;
+            color: var(--color-text);
+            letter-spacing: -0.02em;
+        }
+
+        .landing__subtitle {
+            font-family: var(--font-serif);
+            font-size: 1.25rem;
+            font-weight: 400;
+            color: var(--color-text-secondary);
+            margin: 0 0 1.75rem 0;
+            font-style: italic;
+        }
+
+        .landing__description {
+            font-size: 0.9375rem;
+            line-height: 1.7;
+            color: var(--color-text-secondary);
+            margin: 0 0 2rem 0;
+        }
+
+        .landing__actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.875rem 1.5rem;
+            font-family: var(--font-sans);
+            font-size: 0.9375rem;
+            font-weight: 500;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .btn--primary {
+            background: var(--color-gold);
+            color: white;
+        }
+
+        .btn--primary:hover {
+            background: var(--color-gold-dark);
+        }
+
+        .btn--secondary {
+            background: transparent;
+            color: var(--color-text-secondary);
+            border: 1px solid #ccc;
+        }
+
+        .btn--secondary:hover {
+            border-color: var(--color-gold);
+            color: var(--color-text);
+        }
+
+        .landing__divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 0.25rem 0;
+            color: var(--color-text-secondary);
+            font-size: 0.8125rem;
+        }
+
+        .landing__divider::before,
+        .landing__divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .landing__credit {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            font-size: 0.6875rem;
+            color: rgba(45, 41, 38, 0.6);
+            z-index: 5;
+            text-align: right;
+            line-height: 1.4;
+        }
+
+        .landing__credit a {
+            color: inherit;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 540px) {
+            .landing {
+                padding: 8px;
+            }
+
+            .landing::before {
+                inset: 8px;
+                border-width: 4px;
+            }
+
+            .landing__content {
+                padding: 2rem 1.5rem;
+                margin: 0 0.5rem;
+            }
+
+            .landing__title {
+                font-size: 2.25rem;
+            }
+
+            .landing__subtitle {
+                font-size: 1.125rem;
+            }
+
+            .landing__credit {
+                bottom: 16px;
+                right: 16px;
+                left: 16px;
+                text-align: center;
+            }
+        }
+
+        @media (max-height: 700px) {
+            .landing__content {
+                padding: 1.5rem;
+            }
+
+            .landing__description {
+                margin-bottom: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing">
+        <div class="landing__bg"></div>
+        <div class="landing__overlay"></div>
+
+        <div class="landing__content">
+            <h1 class="landing__title">Painting Journal</h1>
+            <p class="landing__subtitle">Your personal art collection</p>
+
+            <p class="landing__description">
+                Discover masterworks from the world's great museums.
+                Save the paintings that move you, add your reflections,
+                and build a collection that's uniquely yours.
+            </p>
+
+            <div class="landing__actions">
+                <a href="/login?signup" class="btn btn--primary">Create Account</a>
+                <div class="landing__divider">or</div>
+                <a href="/login" class="btn btn--secondary">Sign In</a>
+            </div>
+        </div>
+
+        <div class="landing__credit">
+            <em>Fiskere på Skagens strand</em><br>
+            P.S. Krøyer, 1882
+        </div>
+    </div>
+
+    <script>
+        // Redirect to explore if already logged in
+        if (localStorage.getItem('auth_token')) {
+            window.location.href = '/explore';
+        }
+    </script>
+</body>
+</html>

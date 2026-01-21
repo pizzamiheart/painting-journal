@@ -262,6 +262,16 @@ const API = {
         const params = new URLSearchParams({ limit });
         const response = await fetch(`/api/explore/artist/${encodeURIComponent(artistName)}?${params}`);
         return response.json();
+    },
+
+    async getPreview() {
+        const response = await fetch('/api/explore/preview');
+        return response.json();
+    },
+
+    async getStats() {
+        const response = await fetch('/api/stats');
+        return response.json();
     }
 };
 
@@ -273,6 +283,39 @@ function formatDate(dateString) {
         month: 'long',
         day: 'numeric'
     });
+}
+
+// Truncate text with ellipsis
+function truncateText(text, maxLength) {
+    if (!text || text.length <= maxLength) return text;
+    return text.substring(0, maxLength).trim() + '...';
+}
+
+// Animated counter - eases from fast to slow
+function animateCounter(element, target, duration = 2500) {
+    const start = 0;
+    const startTime = performance.now();
+
+    function easeOutQuart(t) {
+        return 1 - Math.pow(1 - t, 4);
+    }
+
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easedProgress = easeOutQuart(progress);
+        const current = Math.floor(start + (target - start) * easedProgress);
+
+        element.textContent = current.toLocaleString();
+
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        } else {
+            element.textContent = target.toLocaleString();
+        }
+    }
+
+    requestAnimationFrame(update);
 }
 
 // Create skeleton loading grid
@@ -605,9 +648,18 @@ async function initPaintingDetail() {
 }
 
 function renderPaintingDetail(container, painting) {
+    const isLoggedIn = Auth.isLoggedIn();
     const isFavorite = painting.is_favorite;
     const favoriteId = painting.favorite_id;
     const artistName = painting.artist || 'Unknown Artist';
+
+    // For guests, show lock icon on save button
+    const saveButtonText = isLoggedIn
+        ? (isFavorite ? 'Saved' : 'Save to Collection')
+        : '<span class="lock-icon">&#128274;</span> Save to Collection';
+    const saveButtonClass = isLoggedIn
+        ? `btn btn--favorite ${isFavorite ? 'is-favorite' : ''}`
+        : 'btn btn--favorite btn--locked';
 
     container.innerHTML = `
         <div class="painting-detail__main">
@@ -622,14 +674,11 @@ function renderPaintingDetail(container, painting) {
                 </p>
 
                 <div class="painting-actions">
-                    <button class="btn btn--favorite ${isFavorite ? 'is-favorite' : ''}"
+                    <button class="${saveButtonClass}"
                             id="favorite-btn"
                             data-painting='${JSON.stringify(painting).replace(/'/g, "&#39;")}'>
-                        ${isFavorite ? 'Saved' : 'Save to Collection'}
+                        ${saveButtonText}
                     </button>
-                    <a href="${painting.museum_url}" target="_blank" class="btn">
-                        View at Museum
-                    </a>
                 </div>
 
                 <div class="painting-detail__meta">
@@ -685,7 +734,14 @@ function renderPaintingDetail(container, painting) {
 
         ${painting.description ? `
             <div class="painting-detail__description">
-                <p>${painting.description}</p>
+                ${isLoggedIn ? `
+                    <p>${painting.description}</p>
+                ` : `
+                    <p>${truncateText(painting.description, 200)}</p>
+                    <p class="description-signup-prompt">
+                        <a href="/login">Create an account</a> to read the full description and save to your collection.
+                    </p>
+                `}
             </div>
         ` : ''}
 
@@ -703,6 +759,12 @@ function renderPaintingDetail(container, painting) {
     // Set up favorite button
     const favoriteBtn = document.getElementById('favorite-btn');
     favoriteBtn.addEventListener('click', async () => {
+        // If not logged in, redirect to login
+        if (!isLoggedIn) {
+            window.location.href = '/login';
+            return;
+        }
+
         if (painting.is_favorite) {
             await API.removeFavorite(painting.favorite_id);
             painting.is_favorite = false;
@@ -955,7 +1017,30 @@ async function loadJournalEntries(favoriteId) {
 
 // Explore page
 async function initExplore() {
+    const loadingEl = document.getElementById('explore-loading');
+    const previewMode = document.getElementById('preview-mode');
+    const fullExploreMode = document.getElementById('full-explore-mode');
     const erasGrid = document.getElementById('eras-grid');
+
+    if (!loadingEl && !previewMode && !erasGrid) return;
+
+    // Hide loading state
+    if (loadingEl) loadingEl.style.display = 'none';
+
+    // Check if user is logged in
+    if (!Auth.isLoggedIn()) {
+        // Show preview mode for guests
+        await initPreviewMode();
+        return;
+    }
+
+    // Show full explore mode for logged-in users
+    if (previewMode) previewMode.style.display = 'none';
+    if (fullExploreMode) fullExploreMode.style.display = 'block';
+
+    // Load and animate collection stats
+    loadCollectionStats();
+
     const themesGrid = document.getElementById('themes-grid');
     const moodsGrid = document.getElementById('moods-grid');
     const surpriseBtn = document.getElementById('surprise-btn');
@@ -1047,6 +1132,62 @@ async function initExplore() {
                 surpriseBtn.querySelector('.surprise-btn__text').textContent = 'Surprise Me';
             }
         });
+    }
+}
+
+// Load and animate collection stats
+async function loadCollectionStats() {
+    const statsContainer = document.getElementById('collection-stats');
+    if (!statsContainer) return;
+
+    try {
+        const stats = await API.getStats();
+
+        // Animate each stat with a slight delay between them
+        const paintingsEl = document.getElementById('stat-paintings');
+        const artistsEl = document.getElementById('stat-artists');
+        const museumsEl = document.getElementById('stat-museums');
+
+        if (paintingsEl) animateCounter(paintingsEl, stats.paintings, 2500);
+        if (artistsEl) setTimeout(() => animateCounter(artistsEl, stats.artists, 2500), 200);
+        if (museumsEl) setTimeout(() => animateCounter(museumsEl, stats.museums, 2500), 400);
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+// Preview mode for guests
+async function initPreviewMode() {
+    const loadingEl = document.getElementById('explore-loading');
+    const previewMode = document.getElementById('preview-mode');
+    const fullExploreMode = document.getElementById('full-explore-mode');
+    const previewGrid = document.getElementById('preview-grid');
+
+    if (!previewMode || !previewGrid) return;
+
+    // Hide loading, show preview, hide full explore
+    if (loadingEl) loadingEl.style.display = 'none';
+    previewMode.style.display = 'block';
+    if (fullExploreMode) fullExploreMode.style.display = 'none';
+
+    // Show skeleton loading
+    previewGrid.innerHTML = createSkeletonGrid(12);
+
+    try {
+        const data = await API.getPreview();
+
+        previewGrid.innerHTML = '';
+
+        if (data.paintings && data.paintings.length > 0) {
+            data.paintings.forEach(painting => {
+                previewGrid.appendChild(createPaintingCard(painting));
+            });
+        } else {
+            previewGrid.innerHTML = '<p class="empty-state">No paintings available</p>';
+        }
+    } catch (error) {
+        console.error('Error loading preview:', error);
+        previewGrid.innerHTML = '<p class="empty-state">Failed to load paintings</p>';
     }
 }
 

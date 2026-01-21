@@ -3,6 +3,13 @@
 {% block title %}Collection - Painting Journal{% endblock %}
 
 {% block content %}
+<script>
+    // Protect collection page - require login
+    if (!localStorage.getItem('auth_token')) {
+        window.location.href = '/login';
+    }
+</script>
+
 <header class="collection-header">
     <h1 class="collection-title">Your Collection</h1>
     <div class="collection-filters">

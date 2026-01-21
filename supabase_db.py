@@ -639,3 +639,31 @@ def get_random_painting():
     except Exception as e:
         print(f"Error getting random painting: {e}")
         return None
+
+
+def get_collection_stats():
+    """Get statistics about the painting collection."""
+    client = get_client()
+    try:
+        # Get total paintings count
+        paintings_result = client.table("paintings").select("id", count="exact").execute()
+        total_paintings = paintings_result.count or 0
+
+        # Get unique artists
+        artists_result = client.table("paintings").select("artist").execute()
+        artists = set(p["artist"] for p in artists_result.data if p.get("artist") and p["artist"] not in ["anonymous", "Unknown", "Artist unknown", "Unknown Artist"])
+        unique_artists = len(artists)
+
+        # Get unique museums
+        museums_result = client.table("paintings").select("museum_name").execute()
+        museums = set(p["museum_name"] for p in museums_result.data if p.get("museum_name"))
+        unique_museums = len(museums)
+
+        return {
+            "paintings": total_paintings,
+            "artists": unique_artists,
+            "museums": unique_museums
+        }
+    except Exception as e:
+        print(f"Error getting collection stats: {e}")
+        return {"paintings": 0, "artists": 0, "museums": 0}

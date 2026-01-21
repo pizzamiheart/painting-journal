@@ -1,129 +1,448 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Painting Journal</title>
 
-{% block title %}Sign In - Painting Journal{% endblock %}
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="A personal art exploration and journaling app">
+    <meta name="theme-color" content="#C5A55A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Paintings">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
 
-{% block content %}
-<div class="auth-container">
-    <div class="auth-card">
-        <h2 class="auth-title" id="authTitle">Sign In</h2>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 
-        <div class="auth-error" id="authError" style="display: none;"></div>
-        <div class="auth-success" id="authSuccess" style="display: none;"></div>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
 
-        <form id="authForm" class="auth-form">
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required autocomplete="email">
+        :root {
+            --color-gold: #C5A55A;
+            --color-gold-light: #D4BC7C;
+            --color-gold-dark: #9A7B3C;
+            --color-surface: #F5F0EB;
+            --color-text: #2D2926;
+            --color-text-secondary: #5C5552;
+            --color-text-muted: #8A8580;
+            --color-terracotta: #C4785C;
+            --color-terracotta-dark: #A8604A;
+            --color-error: #B54A4A;
+            --color-success: #4A7B5C;
+            --font-serif: 'Cormorant Garamond', Georgia, serif;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: var(--font-sans);
+            color: var(--color-text);
+        }
+
+        .auth-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 12px;
+        }
+
+        /* Golden frame border */
+        .auth-page::before {
+            content: '';
+            position: absolute;
+            inset: 12px;
+            border: 5px solid var(--color-gold);
+            box-shadow:
+                inset 0 0 0 1px var(--color-gold-dark),
+                inset 0 0 0 2px var(--color-gold-light),
+                0 0 0 1px var(--color-gold-dark);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Background painting */
+        .auth-page__bg {
+            position: absolute;
+            inset: 0;
+            background-image: url('/static/images/monet-bennecourt.jpg');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.45;
+        }
+
+        /* Gradient overlay for readability */
+        .auth-page__overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to bottom,
+                rgba(232, 223, 212, 0.4) 0%,
+                rgba(232, 223, 212, 0.5) 50%,
+                rgba(232, 223, 212, 0.7) 100%
+            );
+        }
+
+        .auth-card {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            max-width: 400px;
+            padding: 2.5rem 2rem;
+            background: linear-gradient(
+                145deg,
+                rgba(245, 240, 235, 0.97) 0%,
+                rgba(240, 233, 223, 0.97) 50%,
+                rgba(235, 226, 214, 0.97) 100%
+            );
+            border-radius: 4px;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            /* Subtle paper texture effect */
+            background-image:
+                linear-gradient(145deg, rgba(245, 240, 235, 0.97) 0%, rgba(235, 226, 214, 0.97) 100%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+            background-blend-mode: normal, soft-light;
+        }
+
+        .auth-title {
+            font-family: var(--font-serif);
+            font-size: 2rem;
+            font-weight: 500;
+            margin: 0 0 0.5rem 0;
+            text-align: center;
+            color: var(--color-text);
+        }
+
+        .auth-subtitle {
+            font-size: 0.9375rem;
+            color: var(--color-text-secondary);
+            text-align: center;
+            margin: 0 0 1.75rem 0;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+        }
+
+        .form-group label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-text-muted);
+        }
+
+        .form-group input {
+            padding: 0.75rem;
+            font-size: 1rem;
+            font-family: var(--font-sans);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--color-gold);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.875rem 1.5rem;
+            font-family: var(--font-sans);
+            font-size: 0.9375rem;
+            font-weight: 500;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .btn--primary {
+            background: var(--color-terracotta);
+            color: white;
+        }
+
+        .btn--primary:hover {
+            background: var(--color-terracotta-dark);
+        }
+
+        .btn--primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .auth-toggle {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: var(--color-terracotta);
+            cursor: pointer;
+            font-size: 0.875rem;
+            text-decoration: underline;
+            padding: 0;
+        }
+
+        .btn-link:hover {
+            color: var(--color-terracotta-dark);
+        }
+
+        .auth-error {
+            padding: 0.75rem;
+            background: #FDEAEA;
+            border: 1px solid var(--color-error);
+            border-radius: 4px;
+            color: var(--color-error);
+            font-size: 0.875rem;
+            text-align: center;
+        }
+
+        .auth-success {
+            padding: 0.75rem;
+            background: #EAF5EE;
+            border: 1px solid var(--color-success);
+            border-radius: 4px;
+            color: var(--color-success);
+            font-size: 0.875rem;
+            text-align: center;
+        }
+
+        .auth-credit {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            font-size: 0.6875rem;
+            color: rgba(45, 41, 38, 0.6);
+            z-index: 5;
+            text-align: right;
+            line-height: 1.4;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            font-size: 0.8125rem;
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            z-index: 15;
+        }
+
+        .back-link:hover {
+            color: var(--color-text);
+        }
+
+        @media (max-width: 540px) {
+            .auth-page {
+                padding: 8px;
+            }
+
+            .auth-page::before {
+                inset: 8px;
+                border-width: 4px;
+            }
+
+            .auth-card {
+                padding: 2rem 1.5rem;
+                margin: 0 0.5rem;
+            }
+
+            .auth-title {
+                font-size: 1.75rem;
+            }
+
+            .auth-credit {
+                bottom: 16px;
+                right: 16px;
+                left: 16px;
+                text-align: center;
+            }
+
+            .back-link {
+                top: 16px;
+                left: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-page__bg"></div>
+        <div class="auth-page__overlay"></div>
+
+        <a href="/" class="back-link">&larr; Back</a>
+
+        <div class="auth-card">
+            <h1 class="auth-title" id="authTitle">Sign In</h1>
+            <p class="auth-subtitle">Welcome back to your collection</p>
+
+            <div class="auth-error" id="authError" style="display: none;"></div>
+            <div class="auth-success" id="authSuccess" style="display: none;"></div>
+
+            <form id="authForm" class="auth-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required autocomplete="email">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required minlength="6" autocomplete="current-password">
+                </div>
+
+                <div class="form-group" id="confirmGroup" style="display: none;">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="btn btn--primary" id="authSubmit">Sign In</button>
+            </form>
+
+            <div class="auth-toggle">
+                <span id="toggleText">Don't have an account?</span>
+                <button type="button" class="btn-link" id="toggleAuth">Sign Up</button>
             </div>
+        </div>
 
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required minlength="6" autocomplete="current-password">
-            </div>
-
-            <div class="form-group" id="confirmGroup" style="display: none;">
-                <label for="confirmPassword">Confirm Password</label>
-                <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password">
-            </div>
-
-            <button type="submit" class="btn btn--primary auth-submit" id="authSubmit">Sign In</button>
-        </form>
-
-        <div class="auth-toggle">
-            <span id="toggleText">Don't have an account?</span>
-            <button type="button" class="btn-link" id="toggleAuth">Sign Up</button>
+        <div class="auth-credit">
+            <em>On the Bank of the Seine, Bennecourt</em><br>
+            Claude Monet, 1868
         </div>
     </div>
-</div>
 
-<script>
-(function() {
-    const form = document.getElementById('authForm');
-    const title = document.getElementById('authTitle');
-    const submit = document.getElementById('authSubmit');
-    const toggleBtn = document.getElementById('toggleAuth');
-    const toggleText = document.getElementById('toggleText');
-    const confirmGroup = document.getElementById('confirmGroup');
-    const confirmInput = document.getElementById('confirmPassword');
-    const errorDiv = document.getElementById('authError');
-    const successDiv = document.getElementById('authSuccess');
+    <script>
+    (function() {
+        const form = document.getElementById('authForm');
+        const title = document.getElementById('authTitle');
+        const subtitle = document.querySelector('.auth-subtitle');
+        const submit = document.getElementById('authSubmit');
+        const toggleBtn = document.getElementById('toggleAuth');
+        const toggleText = document.getElementById('toggleText');
+        const confirmGroup = document.getElementById('confirmGroup');
+        const confirmInput = document.getElementById('confirmPassword');
+        const errorDiv = document.getElementById('authError');
+        const successDiv = document.getElementById('authSuccess');
 
-    let isSignUp = false;
+        let isSignUp = false;
 
-    toggleBtn.addEventListener('click', () => {
-        isSignUp = !isSignUp;
-        title.textContent = isSignUp ? 'Create Account' : 'Sign In';
-        submit.textContent = isSignUp ? 'Create Account' : 'Sign In';
-        toggleText.textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
-        toggleBtn.textContent = isSignUp ? 'Sign In' : 'Sign Up';
-        confirmGroup.style.display = isSignUp ? 'block' : 'none';
-        confirmInput.required = isSignUp;
-        errorDiv.style.display = 'none';
-        successDiv.style.display = 'none';
-    });
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        errorDiv.style.display = 'none';
-        successDiv.style.display = 'none';
-
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-
-        if (isSignUp) {
-            const confirm = document.getElementById('confirmPassword').value;
-            if (password !== confirm) {
-                errorDiv.textContent = 'Passwords do not match';
-                errorDiv.style.display = 'block';
-                return;
-            }
+        // Check URL params for signup mode
+        if (window.location.search.includes('signup')) {
+            isSignUp = true;
+            title.textContent = 'Create Account';
+            subtitle.textContent = 'Start your personal art collection';
+            submit.textContent = 'Create Account';
+            toggleText.textContent = 'Already have an account?';
+            toggleBtn.textContent = 'Sign In';
+            confirmGroup.style.display = 'block';
+            confirmInput.required = true;
         }
 
-        submit.disabled = true;
-        submit.textContent = isSignUp ? 'Creating...' : 'Signing in...';
-
-        try {
-            const endpoint = isSignUp ? '/api/auth/signup' : '/api/auth/login';
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-
-            const data = await response.json();
-
-            if (data.error) {
-                throw new Error(data.error);
-            }
-
-            if (data.session && data.session.access_token) {
-                // Store token
-                localStorage.setItem('auth_token', data.session.access_token);
-                localStorage.setItem('auth_user', JSON.stringify(data.user));
-
-                // Redirect to collection
-                window.location.href = '/collection';
-            } else if (isSignUp) {
-                // Email confirmation may be required
-                successDiv.textContent = 'Account created! Check your email to confirm, then sign in.';
-                successDiv.style.display = 'block';
-                // Switch to sign in mode
-                toggleBtn.click();
-            }
-        } catch (err) {
-            errorDiv.textContent = err.message || 'An error occurred';
-            errorDiv.style.display = 'block';
-        } finally {
-            submit.disabled = false;
+        toggleBtn.addEventListener('click', () => {
+            isSignUp = !isSignUp;
+            title.textContent = isSignUp ? 'Create Account' : 'Sign In';
+            subtitle.textContent = isSignUp ? 'Start your personal art collection' : 'Welcome back to your collection';
             submit.textContent = isSignUp ? 'Create Account' : 'Sign In';
-        }
-    });
+            toggleText.textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
+            toggleBtn.textContent = isSignUp ? 'Sign In' : 'Sign Up';
+            confirmGroup.style.display = isSignUp ? 'block' : 'none';
+            confirmInput.required = isSignUp;
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+        });
 
-    // Check if already logged in
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-        window.location.href = '/collection';
-    }
-})();
-</script>
-{% endblock %}
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (isSignUp) {
+                const confirm = document.getElementById('confirmPassword').value;
+                if (password !== confirm) {
+                    errorDiv.textContent = 'Passwords do not match';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+            }
+
+            submit.disabled = true;
+            submit.textContent = isSignUp ? 'Creating...' : 'Signing in...';
+
+            try {
+                const endpoint = isSignUp ? '/api/auth/signup' : '/api/auth/login';
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                if (data.session && data.session.access_token) {
+                    // Store token
+                    localStorage.setItem('auth_token', data.session.access_token);
+                    localStorage.setItem('auth_user', JSON.stringify(data.user));
+
+                    // Redirect to explore (the main app)
+                    window.location.href = '/explore';
+                } else if (isSignUp) {
+                    // Email confirmation may be required
+                    successDiv.textContent = 'Account created! Check your email to confirm, then sign in.';
+                    successDiv.style.display = 'block';
+                    // Switch to sign in mode
+                    toggleBtn.click();
+                }
+            } catch (err) {
+                errorDiv.textContent = err.message || 'An error occurred';
+                errorDiv.style.display = 'block';
+            } finally {
+                submit.disabled = false;
+                submit.textContent = isSignUp ? 'Create Account' : 'Sign In';
+            }
+        });
+
+        // Check if already logged in - redirect to app
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            window.location.href = '/explore';
+        }
+    })();
+    </script>
+</body>
+</html>

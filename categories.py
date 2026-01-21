@@ -116,16 +116,16 @@ ERAS = {
         "name": "Post-Impressionism",
         "years": "1886-1910",
         "description": "Beyond Impressionism. Bold colors, symbolic content, and emotional expression.",
-        "artists": ["Van Gogh", "Cézanne", "Gauguin", "Seurat", "Toulouse-Lautrec"],
-        "search_terms": ["Van Gogh", "Cézanne", "Gauguin", "Seurat"],
+        "artists": ["Van Gogh", "Gauguin", "Seurat", "Toulouse-Lautrec", "Edvard Munch"],
+        "search_terms": ["Van Gogh", "Gauguin", "Seurat", "post-impressionist"],
         "wall_color": "#F5E6D3"
     },
     "modern": {
         "name": "Modern",
         "years": "1900-1970",
         "description": "Breaking traditions. Abstraction, expression, and new ways of seeing.",
-        "artists": ["Picasso", "Matisse", "Kandinsky", "Mondrian", "Klimt", "Hopper"],
-        "search_terms": ["modern art", "Picasso", "Matisse", "Kandinsky", "Klimt"],
+        "artists": ["Matisse", "Kandinsky", "Mondrian", "Klimt", "Edvard Munch"],
+        "search_terms": ["modern art", "Matisse", "Kandinsky", "Klimt", "abstract"],
         "wall_color": "#FFFFFF"
     },
     "dutch-golden-age": {
@@ -275,13 +275,13 @@ def fetch_by_category(category_type, category_key, page=1, limit=12):
     artists = category.get("artists", [])
 
     # Combine search terms and artists for queries
-    queries = artists[:5] + search_terms[:3]
+    queries = artists + search_terms
 
     all_paintings = []
 
-    # Search Supabase for each query
+    # Search Supabase for each query with higher limits to get more results
     for query in queries:
-        result = db.search_paintings(query, page=1, limit=50)
+        result = db.search_paintings(query, page=1, limit=200)
         all_paintings.extend(result.get("paintings", []))
 
     # Remove duplicates by external_id
@@ -299,8 +299,12 @@ def fetch_by_category(category_type, category_key, page=1, limit=12):
         filtered = [p for p in unique if is_in_era(p.get("date_display", ""), era_years)]
         unique = filtered if filtered else unique  # Fall back to unfiltered if nothing matches
 
-    # Shuffle for variety
-    random.shuffle(unique)
+    # Use a seeded shuffle for consistent ordering across pagination
+    # Seed based on category key so same category always shows same order
+    import hashlib
+    seed = int(hashlib.md5(category_key.encode()).hexdigest()[:8], 16)
+    rng = random.Random(seed)
+    rng.shuffle(unique)
 
     # Pagination
     start = (page - 1) * limit

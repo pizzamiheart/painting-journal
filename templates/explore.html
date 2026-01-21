@@ -1,75 +1,119 @@
 {% extends "base.html" %}
 
-{% block title %}Explore - Painting Journal{% endblock %}
+{% block title %}Discover - Painting Journal{% endblock %}
 
 {% block content %}
 <div class="explore-page">
-    <!-- Welcome Section -->
-    <section class="explore-welcome">
-        <h1 class="explore-welcome__title">Welcome to the Gallery</h1>
-        <p class="explore-welcome__subtitle">Discover art across centuries. No expertise required.</p>
-    </section>
+    <!-- Loading state while determining auth -->
+    <div id="explore-loading" class="explore-welcome" style="text-align: center; padding: 4rem 0;">
+        <p class="loading">Loading gallery...</p>
+    </div>
 
-    <!-- Featured Artist of the Day -->
-    <section class="explore-featured" id="featured-artist">
-        <div class="explore-featured__label">Today's Artist</div>
-        <div class="explore-featured__content">
-            <h2 class="explore-featured__name" id="featured-name">Loading...</h2>
-            <p class="explore-featured__bio" id="featured-bio"></p>
-            <a href="#" class="btn btn--primary" id="featured-link">Explore Works</a>
-        </div>
-    </section>
+    <!-- Preview Mode for Guests (shown via JS based on auth state) -->
+    <div id="preview-mode" style="display: none;">
+        <section class="explore-welcome">
+            <h1 class="explore-welcome__title">Discover Masterworks</h1>
+            <p class="explore-welcome__subtitle">A curated selection from the world's great museums</p>
+        </section>
 
-    <!-- Weekly Spotlight -->
-    <section class="explore-spotlight" id="weekly-spotlight">
-        <div class="explore-spotlight__label">This Week's Focus</div>
-        <div class="explore-spotlight__card" id="spotlight-card">
-            <h3 class="explore-spotlight__era" id="spotlight-name">Loading...</h3>
-            <p class="explore-spotlight__years" id="spotlight-years"></p>
-            <p class="explore-spotlight__desc" id="spotlight-desc"></p>
-            <a href="#" class="btn" id="spotlight-link">Browse Era</a>
-        </div>
-    </section>
-
-    <!-- Surprise Me -->
-    <section class="explore-surprise">
-        <button class="surprise-btn" id="surprise-btn">
-            <span class="surprise-btn__text">Surprise Me</span>
-            <span class="surprise-btn__subtext">Show me something beautiful</span>
-        </button>
-    </section>
-
-    <!-- Browse by Era -->
-    <section class="explore-section">
-        <h2 class="explore-section__title">Browse by Era</h2>
-        <p class="explore-section__subtitle">Journey through art history</p>
-        <div class="category-grid" id="eras-grid">
+        <div class="preview-grid painting-grid" id="preview-grid">
             <!-- Populated by JS -->
         </div>
-    </section>
 
-    <!-- Browse by Theme -->
-    <section class="explore-section">
-        <h2 class="explore-section__title">Browse by Theme</h2>
-        <p class="explore-section__subtitle">What speaks to you?</p>
-        <div class="category-grid category-grid--themes" id="themes-grid">
-            <!-- Populated by JS -->
-        </div>
-    </section>
+        <section class="preview-cta">
+            <div class="preview-cta__content">
+                <h2 class="preview-cta__title">Start Your Collection</h2>
+                <p class="preview-cta__text">Create a free account to save your favorite paintings, add personal notes, and explore by era, theme, and mood.</p>
+                <a href="/login" class="btn btn--primary btn--large">Create Account</a>
+                <p class="preview-cta__signin">Already have an account? <a href="/login">Sign in</a></p>
+            </div>
+        </section>
+    </div>
 
-    <!-- Browse by Mood -->
-    <section class="explore-section">
-        <h2 class="explore-section__title">Browse by Mood</h2>
-        <p class="explore-section__subtitle">How are you feeling?</p>
-        <div class="mood-grid" id="moods-grid">
-            <!-- Populated by JS -->
-        </div>
-    </section>
+    <!-- Full Explore Mode for Logged-in Users (shown via JS based on auth state) -->
+    <div id="full-explore-mode" style="display: none;">
+        <!-- Welcome Section with Stats -->
+        <section class="explore-welcome">
+            <h1 class="explore-welcome__title">Welcome to the Gallery</h1>
+            <p class="explore-welcome__subtitle">Discover art across centuries. No expertise required.</p>
 
-    <!-- Search Fallback -->
-    <section class="explore-search">
-        <p>Know what you're looking for?</p>
-        <a href="/search" class="btn">Search by Artist or Keyword</a>
-    </section>
+            <div class="collection-stats" id="collection-stats">
+                <div class="stat">
+                    <span class="stat__number" data-target="0" id="stat-paintings">0</span>
+                    <span class="stat__label">Paintings</span>
+                </div>
+                <div class="stat">
+                    <span class="stat__number" data-target="0" id="stat-artists">0</span>
+                    <span class="stat__label">Artists</span>
+                </div>
+                <div class="stat">
+                    <span class="stat__number" data-target="0" id="stat-museums">0</span>
+                    <span class="stat__label">Museums</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Featured Artist of the Day -->
+        <section class="explore-featured" id="featured-artist">
+            <div class="explore-featured__label">Today's Artist</div>
+            <div class="explore-featured__content">
+                <h2 class="explore-featured__name" id="featured-name">Loading...</h2>
+                <p class="explore-featured__bio" id="featured-bio"></p>
+                <a href="#" class="btn btn--primary" id="featured-link">Explore Works</a>
+            </div>
+        </section>
+
+        <!-- Weekly Spotlight -->
+        <section class="explore-spotlight" id="weekly-spotlight">
+            <div class="explore-spotlight__label">This Week's Focus</div>
+            <div class="explore-spotlight__card" id="spotlight-card">
+                <h3 class="explore-spotlight__era" id="spotlight-name">Loading...</h3>
+                <p class="explore-spotlight__years" id="spotlight-years"></p>
+                <p class="explore-spotlight__desc" id="spotlight-desc"></p>
+                <a href="#" class="btn" id="spotlight-link">Browse Era</a>
+            </div>
+        </section>
+
+        <!-- Surprise Me -->
+        <section class="explore-surprise">
+            <button class="surprise-btn" id="surprise-btn">
+                <span class="surprise-btn__text">Surprise Me</span>
+                <span class="surprise-btn__subtext">Show me something beautiful</span>
+            </button>
+        </section>
+
+        <!-- Browse by Era -->
+        <section class="explore-section">
+            <h2 class="explore-section__title">Browse by Era</h2>
+            <p class="explore-section__subtitle">Journey through art history</p>
+            <div class="category-grid" id="eras-grid">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- Browse by Theme -->
+        <section class="explore-section">
+            <h2 class="explore-section__title">Browse by Theme</h2>
+            <p class="explore-section__subtitle">What speaks to you?</p>
+            <div class="category-grid category-grid--themes" id="themes-grid">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- Browse by Mood -->
+        <section class="explore-section">
+            <h2 class="explore-section__title">Browse by Mood</h2>
+            <p class="explore-section__subtitle">How are you feeling?</p>
+            <div class="mood-grid" id="moods-grid">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- Search Fallback -->
+        <section class="explore-search">
+            <p>Know what you're looking for?</p>
+            <a href="/search" class="btn">Search by Artist or Keyword</a>
+        </section>
+    </div>
 </div>
 {% endblock %}
