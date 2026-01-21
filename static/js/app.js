@@ -2,6 +2,70 @@
  * Painting Journal - Frontend Application
  */
 
+// Auth module for token management
+const Auth = {
+    getToken() {
+        return localStorage.getItem('auth_token');
+    },
+
+    getUser() {
+        const user = localStorage.getItem('auth_user');
+        return user ? JSON.parse(user) : null;
+    },
+
+    isLoggedIn() {
+        return !!this.getToken();
+    },
+
+    logout() {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        window.location.href = '/login';
+    },
+
+    getAuthHeaders() {
+        const token = this.getToken();
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    },
+
+    // Handle 401 responses
+    handle401() {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        window.location.href = '/login';
+    },
+
+    // Initialize header UI
+    initHeader() {
+        const loginLink = document.getElementById('loginLink');
+        const userLoggedIn = document.getElementById('userLoggedIn');
+        const userEmail = document.getElementById('userEmail');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        if (!loginLink || !userLoggedIn) return;
+
+        if (this.isLoggedIn()) {
+            const user = this.getUser();
+            loginLink.style.display = 'none';
+            userLoggedIn.style.display = 'flex';
+            userEmail.textContent = user?.email || 'Account';
+
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        headers: this.getAuthHeaders()
+                    });
+                } catch (e) {}
+                this.logout();
+            });
+        } else {
+            loginLink.style.display = 'block';
+            userLoggedIn.style.display = 'none';
+        }
+    }
+};
+
 // Lightbox for fullscreen image viewing
 const Lightbox = {
     element: null,
@@ -72,6 +136,21 @@ const Lightbox = {
 };
 
 const API = {
+    // Helper to make authenticated requests
+    async _fetch(url, options = {}) {
+        const headers = {
+            ...Auth.getAuthHeaders(),
+            ...options.headers
+        };
+        const response = await fetch(url, { ...options, headers });
+
+        if (response.status === 401) {
+            Auth.handle401();
+            throw new Error('Authentication required');
+        }
+        return response;
+    },
+
     async search(query, museum = null, page = 1) {
         const params = new URLSearchParams({ q: query, page });
         if (museum) params.set('museum', museum);
@@ -80,23 +159,23 @@ const API = {
     },
 
     async getPainting(museum, externalId) {
-        const response = await fetch(`/api/painting/${museum}/${externalId}`);
+        const response = await this._fetch(`/api/painting/${museum}/${externalId}`);
         return response.json();
     },
 
     async getPaintingOfTheDay() {
-        const response = await fetch('/api/painting-of-the-day');
+        const response = await this._fetch('/api/painting-of-the-day');
         return response.json();
     },
 
     async getFavorites(filters = {}) {
         const params = new URLSearchParams(filters);
-        const response = await fetch(`/api/favorites?${params}`);
+        const response = await this._fetch(`/api/favorites?${params}`);
         return response.json();
     },
 
     async addFavorite(paintingData) {
-        const response = await fetch('/api/favorites', {
+        const response = await this._fetch('/api/favorites', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(paintingData)
@@ -105,24 +184,24 @@ const API = {
     },
 
     async removeFavorite(favoriteId) {
-        const response = await fetch(`/api/favorites/${favoriteId}`, {
+        const response = await this._fetch(`/api/favorites/${favoriteId}`, {
             method: 'DELETE'
         });
         return response.json();
     },
 
     async getFavorite(favoriteId) {
-        const response = await fetch(`/api/favorites/${favoriteId}`);
+        const response = await this._fetch(`/api/favorites/${favoriteId}`);
         return response.json();
     },
 
     async getTags() {
-        const response = await fetch('/api/tags');
+        const response = await this._fetch('/api/tags');
         return response.json();
     },
 
     async addTag(favoriteId, tag) {
-        const response = await fetch(`/api/favorites/${favoriteId}/tags`, {
+        const response = await this._fetch(`/api/favorites/${favoriteId}/tags`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tag })
@@ -131,14 +210,14 @@ const API = {
     },
 
     async removeTag(favoriteId, tag) {
-        const response = await fetch(`/api/favorites/${favoriteId}/tags/${tag}`, {
+        const response = await this._fetch(`/api/favorites/${favoriteId}/tags/${tag}`, {
             method: 'DELETE'
         });
         return response.json();
     },
 
     async addJournalEntry(favoriteId, entryText) {
-        const response = await fetch(`/api/favorites/${favoriteId}/journal`, {
+        const response = await this._fetch(`/api/favorites/${favoriteId}/journal`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ entry_text: entryText })
@@ -147,7 +226,7 @@ const API = {
     },
 
     async updateJournalEntry(entryId, entryText) {
-        const response = await fetch(`/api/journal/${entryId}`, {
+        const response = await this._fetch(`/api/journal/${entryId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ entry_text: entryText })
@@ -156,13 +235,13 @@ const API = {
     },
 
     async deleteJournalEntry(entryId) {
-        const response = await fetch(`/api/journal/${entryId}`, {
+        const response = await this._fetch(`/api/journal/${entryId}`, {
             method: 'DELETE'
         });
         return response.json();
     },
 
-    // Explore API methods
+    // Explore API methods (public, no auth required)
     async getCategories() {
         const response = await fetch('/api/explore/categories');
         return response.json();
@@ -1092,6 +1171,9 @@ async function initArtist() {
 
 // Initialize based on page
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize auth header UI
+    Auth.initHeader();
+
     // Highlight current nav link
     const path = window.location.pathname;
     document.querySelectorAll('.site-nav a').forEach(link => {

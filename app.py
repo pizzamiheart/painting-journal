@@ -3,7 +3,8 @@ Painting Journal - A personal art exploration and journaling app.
 """
 import webbrowser
 import threading
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from functools import wraps
+from flask import Flask, render_template, request, jsonify, redirect, url_for, g
 
 # Use Supabase for cloud database (comment out and use 'database' for local SQLite)
 import supabase_db as db
@@ -17,6 +18,85 @@ app.config['JSON_SORT_KEYS'] = False
 
 # Initialize database on startup
 db.init_db()
+
+
+# ============================================
+# AUTH HELPERS
+# ============================================
+
+def get_current_user():
+    """Get current user from Authorization header."""
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header[7:]
+        return db.get_user_from_token(token)
+    return None
+
+
+def require_auth(f):
+    """Decorator to require authentication."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({"error": "Authentication required"}), 401
+        g.user = user
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ============================================
+# AUTH ROUTES
+# ============================================
+
+@app.route('/login')
+def login_page():
+    """Login/signup page."""
+    return render_template('auth.html')
+
+
+@app.route('/api/auth/signup', methods=['POST'])
+def api_signup():
+    """Create a new user account."""
+    data = request.get_json()
+    if not data or not data.get('email') or not data.get('password'):
+        return jsonify({"error": "Email and password are required"}), 400
+
+    result = db.sign_up(data['email'], data['password'])
+    if result.get('error'):
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    """Sign in a user."""
+    data = request.get_json()
+    if not data or not data.get('email') or not data.get('password'):
+        return jsonify({"error": "Email and password are required"}), 400
+
+    result = db.sign_in(data['email'], data['password'])
+    if result.get('error'):
+        return jsonify(result), 401
+    return jsonify(result)
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def api_logout():
+    """Sign out a user."""
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header[7:] if auth_header.startswith('Bearer ') else None
+    result = db.sign_out(token)
+    return jsonify(result)
+
+
+@app.route('/api/auth/user')
+def api_get_user():
+    """Get the current user."""
+    user = get_current_user()
+    if user:
+        return jsonify({"user": user})
+    return jsonify({"user": None})
 
 
 # Page routes
@@ -162,28 +242,27 @@ def api_get_painting(museum, external_id):
     if not painting:
         return jsonify({"error": "Painting not found"}), 404
 
-    # Check if it's a favorite
-    favorite = db.get_favorite_by_external_id(external_id, museum)
-    painting['is_favorite'] = favorite is not None
-    painting['favorite_id'] = favorite['id'] if favorite else None
+    # Check if it's a favorite for the current user
+    user = get_current_user()
+    painting['is_favorite'] = False
+    painting['favorite_id'] = None
+    painting['tags'] = []
 
-    if favorite:
-        painting['tags'] = []
-        cursor_fav = db.get_favorite(favorite['id'])
-        if cursor_fav:
-            favorites_with_tags = db.get_all_favorites()
-            for f in favorites_with_tags:
-                if f['id'] == favorite['id']:
-                    painting['tags'] = f.get('tags', [])
-                    break
+    if user:
+        favorite = db.get_favorite_by_external_id(external_id, museum, user['id'])
+        if favorite:
+            painting['is_favorite'] = True
+            painting['favorite_id'] = favorite['id']
+            painting['tags'] = favorite.get('tags', [])
 
     return jsonify(painting)
 
 
 @app.route('/api/painting-of-the-day')
+@require_auth
 def api_painting_of_the_day():
-    """Get a random painting from favorites."""
-    painting = db.get_random_favorite()
+    """Get a random painting from user's favorites."""
+    painting = db.get_random_favorite(g.user['id'])
     if not painting:
         return jsonify({"message": "No favorites yet. Start exploring and save some paintings!"}), 200
     return jsonify(painting)
@@ -191,6 +270,7 @@ def api_painting_of_the_day():
 
 # Favorites API
 @app.route('/api/favorites', methods=['GET'])
+@require_auth
 def api_get_favorites():
     """Get all favorites with optional filters."""
     filters = {}
@@ -201,116 +281,116 @@ def api_get_favorites():
     if request.args.get('tag'):
         filters['tag'] = request.args.get('tag')
 
-    favorites = db.get_all_favorites(filters if filters else None)
+    favorites = db.get_all_favorites(g.user['id'], filters if filters else None)
     return jsonify({"favorites": favorites})
 
 
 @app.route('/api/favorites', methods=['POST'])
+@require_auth
 def api_add_favorite():
     """Add a painting to favorites."""
     data = request.get_json()
     if not data:
         return jsonify({"error": "Request body is required"}), 400
 
-    favorite_id = db.add_favorite(data)
+    favorite_id = db.add_favorite(data, g.user['id'])
     if favorite_id:
         return jsonify({"id": favorite_id, "message": "Added to favorites"})
     return jsonify({"error": "Failed to add favorite"}), 500
 
 
 @app.route('/api/favorites/<favorite_id>', methods=['DELETE'])
+@require_auth
 def api_remove_favorite(favorite_id):
     """Remove a painting from favorites."""
-    if db.remove_favorite(favorite_id):
+    if db.remove_favorite(favorite_id, g.user['id']):
         return jsonify({"message": "Removed from favorites"})
     return jsonify({"error": "Favorite not found"}), 404
 
 
 @app.route('/api/favorites/<favorite_id>')
+@require_auth
 def api_get_favorite(favorite_id):
     """Get a single favorite with its journal entries."""
-    favorite = db.get_favorite(favorite_id)
+    favorite = db.get_favorite(favorite_id, g.user['id'])
     if not favorite:
         return jsonify({"error": "Favorite not found"}), 404
-
-    # Get tags
-    favorites_with_tags = db.get_all_favorites()
-    for f in favorites_with_tags:
-        if f['id'] == favorite_id:
-            favorite['tags'] = f.get('tags', [])
-            break
-
-    # Get journal entries
-    favorite['journal_entries'] = db.get_journal_entries(favorite_id)
 
     return jsonify(favorite)
 
 
 # Tags API
 @app.route('/api/tags')
+@require_auth
 def api_get_tags():
-    """Get all tags."""
-    tags = db.get_all_tags()
+    """Get all tags for the current user."""
+    tags = db.get_all_tags(g.user['id'])
     return jsonify({"tags": tags})
 
 
 @app.route('/api/favorites/<favorite_id>/tags', methods=['POST'])
+@require_auth
 def api_add_tag(favorite_id):
     """Add a tag to a favorite."""
     data = request.get_json()
     if not data or not data.get('tag'):
         return jsonify({"error": "Tag name is required"}), 400
 
-    if db.add_tag_to_favorite(favorite_id, data['tag']):
+    if db.add_tag_to_favorite(favorite_id, data['tag'], g.user['id']):
         return jsonify({"message": "Tag added"})
     return jsonify({"message": "Tag already exists"})
 
 
 @app.route('/api/favorites/<favorite_id>/tags/<tag_name>', methods=['DELETE'])
+@require_auth
 def api_remove_tag(favorite_id, tag_name):
     """Remove a tag from a favorite."""
-    if db.remove_tag_from_favorite(favorite_id, tag_name):
+    if db.remove_tag_from_favorite(favorite_id, tag_name, g.user['id']):
         return jsonify({"message": "Tag removed"})
     return jsonify({"error": "Tag not found"}), 404
 
 
 # Journal API
 @app.route('/api/favorites/<favorite_id>/journal', methods=['GET'])
+@require_auth
 def api_get_journal_entries(favorite_id):
     """Get all journal entries for a favorite."""
-    entries = db.get_journal_entries(favorite_id)
+    entries = db.get_journal_entries(favorite_id, g.user['id'])
     return jsonify({"entries": entries})
 
 
 @app.route('/api/favorites/<favorite_id>/journal', methods=['POST'])
+@require_auth
 def api_add_journal_entry(favorite_id):
     """Add a journal entry for a favorite."""
     data = request.get_json()
     if not data or not data.get('entry_text'):
         return jsonify({"error": "Entry text is required"}), 400
 
-    entry_id = db.add_journal_entry(favorite_id, data['entry_text'])
+    entry_id = db.add_journal_entry(favorite_id, data['entry_text'], g.user['id'])
     if entry_id:
         return jsonify({"id": entry_id, "message": "Journal entry added"})
     return jsonify({"error": "Failed to add journal entry"}), 500
 
 
 @app.route('/api/journal/<entry_id>', methods=['PUT'])
+@require_auth
 def api_update_journal_entry(entry_id):
     """Update a journal entry."""
     data = request.get_json()
     if not data or not data.get('entry_text'):
         return jsonify({"error": "Entry text is required"}), 400
 
-    if db.update_journal_entry(entry_id, data['entry_text']):
+    if db.update_journal_entry(entry_id, data['entry_text'], g.user['id']):
         return jsonify({"message": "Journal entry updated"})
     return jsonify({"error": "Journal entry not found"}), 404
 
 
 @app.route('/api/journal/<entry_id>', methods=['DELETE'])
+@require_auth
 def api_delete_journal_entry(entry_id):
     """Delete a journal entry."""
-    if db.delete_journal_entry(entry_id):
+    if db.delete_journal_entry(entry_id, g.user['id']):
         return jsonify({"message": "Journal entry deleted"})
     return jsonify({"error": "Journal entry not found"}), 404
 

@@ -29,9 +29,9 @@ def get_client() -> Client:
 def init_db():
     """Initialize database - for Supabase, just verify connection."""
     client = get_client()
-    # Test connection by querying favorites (will be empty initially)
+    # Test connection by querying paintings (public table)
     try:
-        client.table("favorites").select("id").limit(1).execute()
+        client.table("paintings").select("id").limit(1).execute()
         print("Supabase connection successful")
         return True
     except Exception as e:
@@ -41,14 +41,95 @@ def init_db():
 
 
 # ============================================
+# AUTH FUNCTIONS
+# ============================================
+
+def sign_up(email, password):
+    """Create a new user account."""
+    client = get_client()
+    try:
+        result = client.auth.sign_up({
+            "email": email,
+            "password": password
+        })
+        if result.user:
+            return {
+                "user": {
+                    "id": result.user.id,
+                    "email": result.user.email
+                },
+                "session": {
+                    "access_token": result.session.access_token if result.session else None,
+                    "refresh_token": result.session.refresh_token if result.session else None
+                } if result.session else None
+            }
+    except Exception as e:
+        print(f"Sign up error: {e}")
+        return {"error": str(e)}
+    return {"error": "Sign up failed"}
+
+
+def sign_in(email, password):
+    """Sign in an existing user."""
+    client = get_client()
+    try:
+        result = client.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+        if result.user and result.session:
+            return {
+                "user": {
+                    "id": result.user.id,
+                    "email": result.user.email
+                },
+                "session": {
+                    "access_token": result.session.access_token,
+                    "refresh_token": result.session.refresh_token
+                }
+            }
+    except Exception as e:
+        print(f"Sign in error: {e}")
+        return {"error": str(e)}
+    return {"error": "Invalid email or password"}
+
+
+def sign_out(access_token):
+    """Sign out a user."""
+    client = get_client()
+    try:
+        client.auth.sign_out()
+        return {"success": True}
+    except Exception as e:
+        print(f"Sign out error: {e}")
+        return {"error": str(e)}
+
+
+def get_user_from_token(access_token):
+    """Get user info from an access token."""
+    client = get_client()
+    try:
+        result = client.auth.get_user(access_token)
+        if result.user:
+            return {
+                "id": result.user.id,
+                "email": result.user.email
+            }
+    except Exception as e:
+        print(f"Get user error: {e}")
+    return None
+
+
+# ============================================
 # FAVORITES FUNCTIONS
 # ============================================
 
-def add_favorite(painting_data):
+def add_favorite(painting_data, user_id):
     """Add a painting to favorites."""
     client = get_client()
 
     data = {
+        "user_id": user_id,
         "external_id": painting_data.get("external_id"),
         "museum": painting_data.get("museum"),
         "museum_name": painting_data.get("museum_name"),
@@ -72,40 +153,49 @@ def add_favorite(painting_data):
         if "duplicate" in str(e).lower() or "unique" in str(e).lower():
             existing = get_favorite_by_external_id(
                 painting_data.get("external_id"),
-                painting_data.get("museum")
+                painting_data.get("museum"),
+                user_id
             )
             return existing["id"] if existing else None
         print(f"Error adding favorite: {e}")
     return None
 
 
-def remove_favorite(favorite_id):
+def remove_favorite(favorite_id, user_id):
     """Remove a painting from favorites."""
     client = get_client()
     try:
-        result = client.table("favorites").delete().eq("id", favorite_id).execute()
+        result = (client.table("favorites")
+                  .delete()
+                  .eq("id", favorite_id)
+                  .eq("user_id", user_id)
+                  .execute())
         return len(result.data) > 0 if result.data else False
     except Exception as e:
         print(f"Error removing favorite: {e}")
         return False
 
 
-def get_favorite(favorite_id):
+def get_favorite(favorite_id, user_id):
     """Get a single favorite by ID."""
     client = get_client()
     try:
-        result = client.table("favorites").select("*").eq("id", favorite_id).execute()
+        result = (client.table("favorites")
+                  .select("*")
+                  .eq("id", favorite_id)
+                  .eq("user_id", user_id)
+                  .execute())
         if result.data:
             fav = result.data[0]
-            fav["tags"] = get_tags_for_favorite(favorite_id)
-            fav["journal_entries"] = get_journal_entries(favorite_id)
+            fav["tags"] = get_tags_for_favorite(favorite_id, user_id)
+            fav["journal_entries"] = get_journal_entries(favorite_id, user_id)
             return fav
     except Exception as e:
         print(f"Error getting favorite: {e}")
     return None
 
 
-def get_favorite_by_external_id(external_id, museum):
+def get_favorite_by_external_id(external_id, museum, user_id):
     """Get a favorite by external ID and museum."""
     client = get_client()
     try:
@@ -113,21 +203,22 @@ def get_favorite_by_external_id(external_id, museum):
                   .select("*")
                   .eq("external_id", external_id)
                   .eq("museum", museum)
+                  .eq("user_id", user_id)
                   .execute())
         if result.data:
             fav = result.data[0]
-            fav["tags"] = get_tags_for_favorite(fav["id"])
+            fav["tags"] = get_tags_for_favorite(fav["id"], user_id)
             return fav
     except Exception as e:
         print(f"Error getting favorite by external_id: {e}")
     return None
 
 
-def get_all_favorites(filters=None):
+def get_all_favorites(user_id, filters=None):
     """Get all favorites with optional filters."""
     client = get_client()
     try:
-        query = client.table("favorites").select("*")
+        query = client.table("favorites").select("*").eq("user_id", user_id)
 
         if filters:
             if filters.get("artist"):
@@ -140,7 +231,7 @@ def get_all_favorites(filters=None):
 
         favorites = []
         for fav in result.data or []:
-            fav["tags"] = get_tags_for_favorite(fav["id"])
+            fav["tags"] = get_tags_for_favorite(fav["id"], user_id)
 
             # Filter by tag if specified
             if filters and filters.get("tag"):
@@ -155,16 +246,16 @@ def get_all_favorites(filters=None):
         return []
 
 
-def get_random_favorite():
+def get_random_favorite(user_id):
     """Get a random favorite for 'painting of the day'."""
     client = get_client()
     try:
         # Supabase doesn't have RANDOM(), so we get all and pick one
-        result = client.table("favorites").select("*").execute()
+        result = client.table("favorites").select("*").eq("user_id", user_id).execute()
         if result.data:
             import random
             fav = random.choice(result.data)
-            fav["tags"] = get_tags_for_favorite(fav["id"])
+            fav["tags"] = get_tags_for_favorite(fav["id"], user_id)
             return fav
     except Exception as e:
         print(f"Error getting random favorite: {e}")
@@ -175,19 +266,26 @@ def get_random_favorite():
 # TAGS FUNCTIONS
 # ============================================
 
-def get_or_create_tag(tag_name):
+def get_or_create_tag(tag_name, user_id):
     """Get or create a tag, return its ID."""
     client = get_client()
     tag_name = tag_name.lower().strip()
 
     try:
-        # Try to find existing
-        result = client.table("tags").select("id").eq("name", tag_name).execute()
+        # Try to find existing for this user
+        result = (client.table("tags")
+                  .select("id")
+                  .eq("name", tag_name)
+                  .eq("user_id", user_id)
+                  .execute())
         if result.data:
             return result.data[0]["id"]
 
         # Create new
-        result = client.table("tags").insert({"name": tag_name}).execute()
+        result = client.table("tags").insert({
+            "name": tag_name,
+            "user_id": user_id
+        }).execute()
         if result.data:
             return result.data[0]["id"]
     except Exception as e:
@@ -195,10 +293,10 @@ def get_or_create_tag(tag_name):
     return None
 
 
-def add_tag_to_favorite(favorite_id, tag_name):
+def add_tag_to_favorite(favorite_id, tag_name, user_id):
     """Add a tag to a favorite."""
     client = get_client()
-    tag_id = get_or_create_tag(tag_name)
+    tag_id = get_or_create_tag(tag_name, user_id)
 
     if not tag_id:
         return False
@@ -215,14 +313,18 @@ def add_tag_to_favorite(favorite_id, tag_name):
         return False
 
 
-def remove_tag_from_favorite(favorite_id, tag_name):
+def remove_tag_from_favorite(favorite_id, tag_name, user_id):
     """Remove a tag from a favorite."""
     client = get_client()
     tag_name = tag_name.lower().strip()
 
     try:
-        # Get tag ID
-        tag_result = client.table("tags").select("id").eq("name", tag_name).execute()
+        # Get tag ID for this user
+        tag_result = (client.table("tags")
+                      .select("id")
+                      .eq("name", tag_name)
+                      .eq("user_id", user_id)
+                      .execute())
         if not tag_result.data:
             return False
 
@@ -240,7 +342,7 @@ def remove_tag_from_favorite(favorite_id, tag_name):
         return False
 
 
-def get_tags_for_favorite(favorite_id):
+def get_tags_for_favorite(favorite_id, user_id):
     """Get all tags for a favorite."""
     client = get_client()
     try:
@@ -260,12 +362,12 @@ def get_tags_for_favorite(favorite_id):
         return []
 
 
-def get_all_tags():
-    """Get all tags with counts."""
+def get_all_tags(user_id):
+    """Get all tags with counts for a user."""
     client = get_client()
     try:
-        # Get all tags with their favorite counts
-        result = client.table("tags").select("id, name").execute()
+        # Get all tags for this user
+        result = client.table("tags").select("id, name").eq("user_id", user_id).execute()
 
         tags_with_counts = []
         for tag in result.data or []:
@@ -288,13 +390,14 @@ def get_all_tags():
 # JOURNAL FUNCTIONS
 # ============================================
 
-def add_journal_entry(favorite_id, entry_text):
+def add_journal_entry(favorite_id, entry_text, user_id):
     """Add a journal entry for a favorite."""
     client = get_client()
     try:
         result = client.table("journal_entries").insert({
             "favorite_id": favorite_id,
-            "entry_text": entry_text
+            "entry_text": entry_text,
+            "user_id": user_id
         }).execute()
         if result.data:
             return result.data[0]["id"]
@@ -303,13 +406,14 @@ def add_journal_entry(favorite_id, entry_text):
     return None
 
 
-def update_journal_entry(entry_id, entry_text):
+def update_journal_entry(entry_id, entry_text, user_id):
     """Update a journal entry."""
     client = get_client()
     try:
         result = (client.table("journal_entries")
                   .update({"entry_text": entry_text})
                   .eq("id", entry_id)
+                  .eq("user_id", user_id)
                   .execute())
         return len(result.data) > 0 if result.data else False
     except Exception as e:
@@ -317,24 +421,29 @@ def update_journal_entry(entry_id, entry_text):
         return False
 
 
-def delete_journal_entry(entry_id):
+def delete_journal_entry(entry_id, user_id):
     """Delete a journal entry."""
     client = get_client()
     try:
-        result = client.table("journal_entries").delete().eq("id", entry_id).execute()
+        result = (client.table("journal_entries")
+                  .delete()
+                  .eq("id", entry_id)
+                  .eq("user_id", user_id)
+                  .execute())
         return True
     except Exception as e:
         print(f"Error deleting journal entry: {e}")
         return False
 
 
-def get_journal_entries(favorite_id):
+def get_journal_entries(favorite_id, user_id):
     """Get all journal entries for a favorite."""
     client = get_client()
     try:
         result = (client.table("journal_entries")
                   .select("*")
                   .eq("favorite_id", favorite_id)
+                  .eq("user_id", user_id)
                   .order("created_at", desc=True)
                   .execute())
         return result.data or []
