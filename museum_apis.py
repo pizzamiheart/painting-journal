@@ -1,5 +1,5 @@
 """
-Museum API integrations for the painting journal.
+Museum API integrations for Art Stuff.
 Supports Art Institute of Chicago, Cleveland Museum of Art, Harvard Art Museums,
 Metropolitan Museum of Art, Rijksmuseum, and SMK (Denmark).
 """

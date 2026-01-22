@@ -1,5 +1,5 @@
 /**
- * Painting Journal - Frontend Application
+ * Art Stuff - Frontend Application
  */
 
 // Auth module for token management

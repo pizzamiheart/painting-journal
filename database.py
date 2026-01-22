@@ -1,5 +1,5 @@
 """
-Database module for the painting journal.
+Database module for Art Stuff.
 Handles SQLite storage for favorites, tags, and journal entries.
 """
 import sqlite3

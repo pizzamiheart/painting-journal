@@ -1,7 +1,7 @@
 {
-  "name": "Painting Journal",
-  "short_name": "Paintings",
-  "description": "A personal art exploration and journaling app",
+  "name": "Art Stuff",
+  "short_name": "Art Stuff",
+  "description": "Art Stuff is a place to discover cool art from world-class museums. Browse, build a collection, and tell your friends.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#E8DFD4",

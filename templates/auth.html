@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In - Painting Journal</title>
+    <title>Sign In - Art Stuff</title>
 
     <!-- PWA Meta Tags -->
-    <meta name="description" content="A personal art exploration and journaling app">
+    <meta name="description" content="Art Stuff is a place to discover cool art from world-class museums. Browse, build a collection, and tell your friends.">
     <meta name="theme-color" content="#C5A55A">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Paintings">
+    <meta name="apple-mobile-web-app-title" content="Art Stuff">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
 
@@ -359,7 +359,7 @@
         if (window.location.search.includes('signup')) {
             isSignUp = true;
             title.textContent = 'Create Account';
-            subtitle.textContent = 'Start your personal art collection';
+            subtitle.textContent = 'Browse, discover, and collect some of the coolest art over centuries. Add your own notes and tags. Enjoy.';
             submit.textContent = 'Create Account';
             toggleText.textContent = 'Already have an account?';
             toggleBtn.textContent = 'Sign In';
@@ -370,7 +370,7 @@
         toggleBtn.addEventListener('click', () => {
             isSignUp = !isSignUp;
             title.textContent = isSignUp ? 'Create Account' : 'Sign In';
-            subtitle.textContent = isSignUp ? 'Start your personal art collection' : 'Welcome back to your collection';
+            subtitle.textContent = isSignUp ? 'Browse, discover, and collect some of the coolest art over centuries. Add your own notes and tags. Enjoy.' : 'Welcome back to your collection';
             submit.textContent = isSignUp ? 'Create Account' : 'Sign In';
             toggleText.textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
             toggleBtn.textContent = isSignUp ? 'Sign In' : 'Sign Up';

@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Painting Journal{% endblock %}</title>
+    <title>{% block title %}Art Stuff{% endblock %}</title>
 
     <!-- PWA Meta Tags -->
-    <meta name="description" content="A personal art exploration and journaling app">
+    <meta name="description" content="Art Stuff is a place to discover cool art from world-class museums. Browse, build a collection, and tell your friends.">
     <meta name="theme-color" content="#C5A55A">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Paintings">
+    <meta name="apple-mobile-web-app-title" content="Art Stuff">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
 
@@ -22,7 +22,7 @@
 <body>
     <header class="site-header">
         <div class="container site-header__inner">
-            <h1 class="site-title"><a href="/explore">Painting Journal</a></h1>
+            <h1 class="site-title"><a href="/explore">Art Stuff</a></h1>
             <nav class="site-nav">
                 <a href="/explore">Discover</a>
                 <a href="/search">Search</a>
@@ -46,7 +46,7 @@
 
     <footer class="site-footer">
         <div class="container">
-            <p>A personal art exploration journal</p>
+            <p>A place to discover cool art stuff</p>
         </div>
     </footer>
 

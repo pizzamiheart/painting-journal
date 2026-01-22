@@ -1,6 +1,6 @@
-# Painting Journal
+# Art Stuff
 
-A personal art exploration and journaling app. Search paintings across world-class museums, save favorites, and keep notes on the art that moves you.
+A place to discover cool art stuff. Browse | Collect | Enjoy | Tell Your Friends.
 
 ## Features
 

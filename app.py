@@ -1,5 +1,5 @@
 """
-Painting Journal - A personal art exploration and journaling app.
+Art Stuff - A place to discover cool art stuff.
 """
 import webbrowser
 import threading
@@ -432,7 +432,7 @@ def open_browser():
 if __name__ == '__main__':
     # Open browser after 1.5 seconds
     threading.Timer(1.5, open_browser).start()
-    print("\n  Painting Journal")
+    print("\n  Art Stuff")
     print("  Starting server at http://127.0.0.1:5001")
     print("  Press Ctrl+C to stop\n")
     app.run(debug=False, port=5001)

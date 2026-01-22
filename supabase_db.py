@@ -1,5 +1,5 @@
 """
-Database module for the painting journal - Supabase version.
+Database module for Art Stuff - Supabase version.
 Handles cloud storage for paintings, favorites, tags, and journal entries.
 """
 import os
