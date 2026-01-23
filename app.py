@@ -201,12 +201,14 @@ def api_search():
 @app.route('/api/explore/categories')
 def api_get_categories():
     """Get all category data for the explore page."""
+    representatives = categories.get_representative_paintings()
     return jsonify({
         "eras": {k: {"key": k, **v} for k, v in categories.ERAS.items()},
         "themes": {k: {"key": k, **v} for k, v in categories.THEMES.items()},
         "moods": {k: {"key": k, **v} for k, v in categories.MOODS.items()},
         "featured_artist": categories.get_featured_artist(),
-        "weekly_spotlight": categories.get_weekly_spotlight()
+        "weekly_spotlight": categories.get_weekly_spotlight(),
+        "representatives": representatives
     })
 
 

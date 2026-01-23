@@ -359,7 +359,7 @@
         if (window.location.search.includes('signup')) {
             isSignUp = true;
             title.textContent = 'Create Account';
-            subtitle.textContent = 'Browse, discover, and collect some of the coolest art over centuries. Add your own notes and tags. Enjoy.';
+            subtitle.textContent = 'Browse, discover, and collect some of the coolest visual art over centuries. Add your own notes and tags. Enjoy.';
             submit.textContent = 'Create Account';
             toggleText.textContent = 'Already have an account?';
             toggleBtn.textContent = 'Sign In';
@@ -370,7 +370,7 @@
         toggleBtn.addEventListener('click', () => {
             isSignUp = !isSignUp;
             title.textContent = isSignUp ? 'Create Account' : 'Sign In';
-            subtitle.textContent = isSignUp ? 'Browse, discover, and collect some of the coolest art over centuries. Add your own notes and tags. Enjoy.' : 'Welcome back to your collection';
+            subtitle.textContent = isSignUp ? 'Browse, discover, and collect some of the coolest visual art over centuries. Add your own notes and tags. Enjoy.' : 'Welcome back to your collection';
             submit.textContent = isSignUp ? 'Create Account' : 'Sign In';
             toggleText.textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
             toggleBtn.textContent = isSignUp ? 'Sign In' : 'Sign Up';

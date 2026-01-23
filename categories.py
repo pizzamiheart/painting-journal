@@ -347,3 +347,81 @@ def get_weekly_spotlight():
     era_key = era_keys[idx]
     era = ERAS[era_key]
     return {"key": era_key, **era}
+
+
+def resize_image_url(url, width=400):
+    """Resize IIIF image URLs to a smaller size for carousel thumbnails.
+    This prevents 403 errors from museums blocking large image requests
+    and speeds up loading significantly."""
+    if not url:
+        return url
+    # Art Institute of Chicago IIIF pattern: /full/{width},/0/default.jpg
+    if 'artic.edu/iiif' in url:
+        import re
+        return re.sub(r'/full/\d+,/', f'/full/{width},/', url)
+    # Rijksmuseum: already uses reasonable sizes
+    # Cleveland: direct URLs, no resize needed
+    return url
+
+
+def get_representative_paintings():
+    """Get one representative painting with image for each era and theme."""
+    from datetime import date
+    representatives = {"eras": {}, "themes": {}, "featured_artist": None}
+
+    # For each era, search for the first artist and get one painting with an image
+    for key, era in ERAS.items():
+        artists = era.get("artists", [])
+        for artist in artists[:3]:  # Try up to 3 artists
+            result = db.search_paintings(artist, page=1, limit=10)
+            paintings = result.get("paintings", [])
+            # Find one with an image URL
+            for p in paintings:
+                if p.get("image_url"):
+                    representatives["eras"][key] = {
+                        "image_url": resize_image_url(p["image_url"]),
+                        "title": p.get("title", ""),
+                        "artist": p.get("artist", ""),
+                        "museum": p.get("museum", ""),
+                        "external_id": p.get("external_id", "")
+                    }
+                    break
+            if key in representatives["eras"]:
+                break
+
+    # For each theme, search using the first search term
+    for key, theme in THEMES.items():
+        terms = theme.get("search_terms", [])
+        for term in terms[:2]:  # Try up to 2 terms
+            result = db.search_paintings(term, page=1, limit=10)
+            paintings = result.get("paintings", [])
+            for p in paintings:
+                if p.get("image_url"):
+                    representatives["themes"][key] = {
+                        "image_url": resize_image_url(p["image_url"]),
+                        "title": p.get("title", ""),
+                        "artist": p.get("artist", ""),
+                        "museum": p.get("museum", ""),
+                        "external_id": p.get("external_id", "")
+                    }
+                    break
+            if key in representatives["themes"]:
+                break
+
+    # Get a painting for the featured artist
+    featured = get_featured_artist()
+    if featured:
+        result = db.search_paintings(featured["name"], page=1, limit=10)
+        paintings = result.get("paintings", [])
+        for p in paintings:
+            if p.get("image_url"):
+                representatives["featured_artist"] = {
+                    "image_url": resize_image_url(p["image_url"]),
+                    "title": p.get("title", ""),
+                    "artist": p.get("artist", ""),
+                    "museum": p.get("museum", ""),
+                    "external_id": p.get("external_id", "")
+                }
+                break
+
+    return representatives

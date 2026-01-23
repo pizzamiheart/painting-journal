@@ -1020,9 +1020,9 @@ async function initExplore() {
     const loadingEl = document.getElementById('explore-loading');
     const previewMode = document.getElementById('preview-mode');
     const fullExploreMode = document.getElementById('full-explore-mode');
-    const erasGrid = document.getElementById('eras-grid');
+    const erasTrackCheck = document.getElementById('eras-track');
 
-    if (!loadingEl && !previewMode && !erasGrid) return;
+    if (!loadingEl && !previewMode && !erasTrackCheck) return;
 
     // Hide loading state
     if (loadingEl) loadingEl.style.display = 'none';
@@ -1041,75 +1041,128 @@ async function initExplore() {
     // Load and animate collection stats
     loadCollectionStats();
 
-    const themesGrid = document.getElementById('themes-grid');
+    const erasTrack = document.getElementById('eras-track');
+    const themesTrack = document.getElementById('themes-track');
+    const featuredTrack = document.getElementById('featured-track');
     const moodsGrid = document.getElementById('moods-grid');
     const surpriseBtn = document.getElementById('surprise-btn');
 
-    if (!erasGrid) return;
+    if (!erasTrack) return;
+
+    // Helper: create a framed carousel card
+    function createCarouselCard(href, imageUrl, title, subtitle, description, accentColor) {
+        const card = document.createElement('a');
+        card.href = href;
+        card.className = 'carousel-card';
+        if (accentColor) card.style.setProperty('--card-accent', accentColor);
+        card.innerHTML = `
+            <div class="carousel-card__frame">
+                <img class="carousel-card__img" src="${imageUrl || ''}" alt="${title}" loading="lazy">
+            </div>
+            <h3 class="carousel-card__title">${title}</h3>
+            ${subtitle ? `<p class="carousel-card__subtitle">${subtitle}</p>` : ''}
+            <p class="carousel-card__desc">${description}</p>
+        `;
+        return card;
+    }
 
     try {
         const data = await API.getCategories();
+        const reps = data.representatives || {};
 
-        // Populate featured artist
+        // Populate eras carousel
+        erasTrack.innerHTML = '';
+        Object.entries(data.eras).forEach(([key, era]) => {
+            const rep = reps.eras && reps.eras[key];
+            const imageUrl = rep ? rep.image_url : '';
+            const card = createCarouselCard(
+                `/explore/era/${key}`,
+                imageUrl,
+                era.name,
+                era.years,
+                era.description,
+                era.wall_color
+            );
+            erasTrack.appendChild(card);
+        });
+
+        // Populate themes carousel
+        themesTrack.innerHTML = '';
+        Object.entries(data.themes).forEach(([key, theme]) => {
+            const rep = reps.themes && reps.themes[key];
+            const imageUrl = rep ? rep.image_url : '';
+            const card = createCarouselCard(
+                `/explore/theme/${key}`,
+                imageUrl,
+                theme.name,
+                null,
+                theme.description
+            );
+            themesTrack.appendChild(card);
+        });
+
+        // Populate featured carousel (Today's Artist + This Week's Focus)
+        featuredTrack.innerHTML = '';
         if (data.featured_artist) {
             const artist = data.featured_artist;
-            document.getElementById('featured-name').textContent = artist.full_name;
-            document.getElementById('featured-bio').textContent = artist.bio;
-            document.getElementById('featured-link').href = `/explore/artist/${encodeURIComponent(artist.name)}`;
+            const rep = reps.featured_artist;
+            const imageUrl = rep ? rep.image_url : '';
+            const card = createCarouselCard(
+                `/explore/artist/${encodeURIComponent(artist.name)}`,
+                imageUrl,
+                artist.full_name,
+                "Today's Artist",
+                artist.bio
+            );
+            featuredTrack.appendChild(card);
         }
-
-        // Populate weekly spotlight
         if (data.weekly_spotlight) {
             const spotlight = data.weekly_spotlight;
-            document.getElementById('spotlight-name').textContent = spotlight.name;
-            document.getElementById('spotlight-years').textContent = spotlight.years;
-            document.getElementById('spotlight-desc').textContent = spotlight.description;
-            document.getElementById('spotlight-link').href = `/explore/era/${spotlight.key}`;
+            const rep = reps.eras && reps.eras[spotlight.key];
+            const imageUrl = rep ? rep.image_url : '';
+            const card = createCarouselCard(
+                `/explore/era/${spotlight.key}`,
+                imageUrl,
+                spotlight.name,
+                "This Week's Focus — " + spotlight.years,
+                spotlight.description
+            );
+            featuredTrack.appendChild(card);
         }
 
-        // Populate eras
-        erasGrid.innerHTML = '';
-        Object.entries(data.eras).forEach(([key, era]) => {
-            const card = document.createElement('a');
-            card.href = `/explore/era/${key}`;
-            card.className = 'category-card category-card--era';
-            card.style.setProperty('--card-accent', era.wall_color);
-            card.innerHTML = `
-                <h3 class="category-card__name">${era.name}</h3>
-                <p class="category-card__years">${era.years}</p>
-                <p class="category-card__description">${era.description}</p>
-            `;
-            erasGrid.appendChild(card);
-        });
-
-        // Populate themes
-        themesGrid.innerHTML = '';
-        Object.entries(data.themes).forEach(([key, theme]) => {
-            const card = document.createElement('a');
-            card.href = `/explore/theme/${key}`;
-            card.className = 'category-card';
-            card.innerHTML = `
-                <div class="category-card__icon">${theme.icon || ''}</div>
-                <h3 class="category-card__name">${theme.name}</h3>
-                <p class="category-card__description">${theme.description}</p>
-            `;
-            themesGrid.appendChild(card);
-        });
-
         // Populate moods
-        moodsGrid.innerHTML = '';
-        Object.entries(data.moods).forEach(([key, mood]) => {
-            const btn = document.createElement('a');
-            btn.href = `/explore/mood/${key}`;
-            btn.className = 'mood-btn';
-            btn.textContent = mood.name;
-            moodsGrid.appendChild(btn);
-        });
+        if (moodsGrid) {
+            moodsGrid.innerHTML = '';
+            Object.entries(data.moods).forEach(([key, mood]) => {
+                const btn = document.createElement('a');
+                btn.href = `/explore/mood/${key}`;
+                btn.className = 'mood-btn';
+                btn.textContent = mood.name;
+                moodsGrid.appendChild(btn);
+            });
+        }
 
     } catch (error) {
         console.error('Error loading categories:', error);
-        erasGrid.innerHTML = '<p>Failed to load categories</p>';
+        erasTrack.innerHTML = '<p>Failed to load categories</p>';
     }
+
+    // Carousel navigation
+    document.querySelectorAll('.carousel__btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const trackId = btn.dataset.carousel;
+            const track = document.getElementById(trackId);
+            if (!track) return;
+            const cardWidth = track.querySelector('.carousel-card')?.offsetWidth || 300;
+            const gap = 24;
+            const scrollAmount = cardWidth + gap;
+            if (btn.classList.contains('carousel__btn--prev')) {
+                track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+            } else {
+                track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+            }
+        });
+    });
 
     // Surprise Me button
     if (surpriseBtn) {
@@ -1341,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('painting-detail')) {
         initPaintingDetail();
     }
-    if (document.getElementById('eras-grid')) {
+    if (document.getElementById('eras-track')) {
         initExplore();
     }
     if (document.querySelector('.browse-page')) {

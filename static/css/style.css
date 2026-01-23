@@ -891,113 +891,6 @@ main {
 }
 
 /* Featured Artist */
-.explore-featured {
-    text-align: center;
-    padding: var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
-    background: var(--color-accent-light);
-    border-left: 3px solid var(--color-terracotta);
-}
-
-.explore-featured__label {
-    font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    margin-bottom: var(--spacing-md);
-}
-
-.explore-featured__name {
-    font-family: var(--font-serif);
-    font-size: 1.75rem;
-    margin-bottom: var(--spacing-xs);
-}
-
-.explore-featured__bio {
-    color: var(--color-text-secondary);
-    max-width: 500px;
-    margin: 0 auto var(--spacing-md);
-    font-size: 0.9375rem;
-}
-
-/* Weekly Spotlight */
-.explore-spotlight {
-    margin-bottom: var(--spacing-2xl);
-}
-
-.explore-spotlight__label {
-    font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    margin-bottom: var(--spacing-md);
-    text-align: center;
-}
-
-.explore-spotlight__card {
-    text-align: center;
-    padding: var(--spacing-xl);
-    background: linear-gradient(135deg, #F9F3E8 0%, #F5EFE0 100%);
-    border-left: 3px solid var(--color-ochre);
-}
-
-.explore-spotlight__era {
-    font-family: var(--font-serif);
-    font-size: 1.5rem;
-    margin-bottom: var(--spacing-xs);
-}
-
-.explore-spotlight__years {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    letter-spacing: 0.1em;
-    margin-bottom: var(--spacing-sm);
-}
-
-.explore-spotlight__desc {
-    color: var(--color-text-secondary);
-    max-width: 500px;
-    margin: 0 auto var(--spacing-md);
-    font-size: 0.9375rem;
-}
-
-/* Surprise Me */
-.explore-surprise {
-    text-align: center;
-    margin-bottom: var(--spacing-2xl);
-}
-
-.surprise-btn {
-    background: var(--color-ochre);
-    border: none;
-    padding: var(--spacing-md) var(--spacing-xl);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #fff;
-}
-
-.surprise-btn:hover {
-    background: #B8954F;
-    transform: translateY(-1px);
-}
-
-.surprise-btn__text {
-    display: block;
-    font-family: var(--font-serif);
-    font-size: 1.25rem;
-    margin-bottom: 0.25rem;
-}
-
-.surprise-btn__subtext {
-    display: block;
-    font-size: 0.75rem;
-    opacity: 0.85;
-}
-
-.surprise-btn:hover .surprise-btn__subtext {
-    opacity: 1;
-}
-
 /* Explore Sections */
 .explore-section {
     margin-bottom: var(--spacing-2xl);
@@ -1017,73 +910,238 @@ main {
     font-size: 0.875rem;
 }
 
-/* Category Grid */
-.category-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--spacing-md);
+/* Carousel */
+.carousel {
+    position: relative;
+    padding: 0 2rem;
 }
 
-.category-card {
-    padding: var(--spacing-lg);
+.carousel__track {
+    display: flex;
+    gap: 1.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem 0.5rem 1.5rem;
+    scrollbar-width: none;
+}
+
+.carousel__track::-webkit-scrollbar {
+    display: none;
+}
+
+.carousel__nav {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 0.75rem;
+}
+
+.carousel__btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     border: 1px solid var(--color-border);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-    display: block;
     background: var(--color-surface);
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--color-text-secondary);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.category-card:hover {
-    border-color: var(--color-terracotta);
-    background: var(--color-bg-subtle);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+.carousel__btn:hover {
+    border-color: var(--color-ochre);
+    color: var(--color-ochre);
+    background: #FAF7F2;
 }
 
-.category-card--era {
-    border-left-width: 4px;
-    border-left-color: var(--card-accent, var(--color-accent));
-    background: linear-gradient(135deg, var(--color-surface) 0%, rgba(245, 240, 235, 0.5) 100%);
+/* Carousel Card */
+.carousel-card {
+    scroll-snap-align: center;
+    flex: 0 0 260px;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: transform 0.2s ease;
+    cursor: pointer;
 }
 
-.category-card__name {
+.carousel-card:hover {
+    transform: translateY(-4px);
+}
+
+.carousel-card__frame {
+    width: 220px;
+    height: 180px;
+    padding: 8px;
+    background: linear-gradient(145deg, #C5A55A, #9A7B3C);
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+    margin-bottom: 0.75rem;
+    position: relative;
+}
+
+.carousel-card__frame::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    pointer-events: none;
+}
+
+.carousel-card__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    background: linear-gradient(135deg, #E8DFD4 25%, #F0E8DD 50%, #E8DFD4 75%);
+    background-size: 200% 200%;
+    animation: img-loading 1.5s ease-in-out infinite;
+}
+
+.carousel-card__img[src]:not([src=""]) {
+    animation: none;
+}
+
+@keyframes img-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.carousel-card__title {
     font-family: var(--font-serif);
     font-size: 1.125rem;
-    margin-bottom: 0.25rem;
     color: var(--color-text);
+    margin: 0 0 0.25rem;
 }
 
-.category-card__years {
+.carousel-card__subtitle {
     font-size: 0.6875rem;
     color: var(--color-text-muted);
     letter-spacing: 0.08em;
-    margin-bottom: var(--spacing-sm);
     text-transform: uppercase;
+    margin: 0 0 0.375rem;
 }
 
-.category-card__description {
+.carousel-card__desc {
     font-size: 0.8125rem;
     color: var(--color-text-secondary);
     line-height: 1.5;
     margin: 0;
+    max-width: 240px;
 }
 
-.category-card__icon {
-    display: none;
+/* Featured Pair - larger centered layout for 2 items */
+.featured-pair {
+    display: flex;
+    justify-content: center;
+    gap: 4rem;
+    padding: 1rem 0 2rem;
+    flex-wrap: wrap;
 }
 
-/* Theme Grid - more colorful */
-.category-grid--themes .category-card {
+.featured-pair .carousel-card {
+    flex: 0 0 300px;
+}
+
+.featured-pair .carousel-card__frame {
+    width: 280px;
+    height: 220px;
+}
+
+@media (max-width: 700px) {
+    .featured-pair {
+        gap: 2rem;
+    }
+
+    .featured-pair .carousel-card {
+        flex: 0 0 260px;
+    }
+
+    .featured-pair .carousel-card__frame {
+        width: 240px;
+        height: 190px;
+    }
+}
+
+/* Surprise Me - Whimsical floating button */
+.surprise-float {
     text-align: center;
-    background: linear-gradient(145deg, #FAF7F4 0%, #F5EFE8 100%);
-    border-color: var(--color-ochre);
-    border-left-width: 3px;
+    margin: var(--spacing-xl) 0 var(--spacing-2xl);
+    position: relative;
 }
 
-.category-grid--themes .category-card:hover {
-    background: linear-gradient(145deg, #F5EFE8 0%, #EDE5DA 100%);
-    border-color: var(--color-gold-dark);
+.surprise-btn {
+    background: linear-gradient(135deg, #C5A55A 0%, #D4BC7C 50%, #C5A55A 100%);
+    background-size: 200% 200%;
+    border: none;
+    padding: 1rem 2.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #fff;
+    border-radius: 50px;
+    box-shadow:
+        0 4px 16px rgba(197, 165, 90, 0.35),
+        0 2px 4px rgba(0, 0, 0, 0.1);
+    animation: shimmer 3s ease-in-out infinite;
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.surprise-btn:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow:
+        0 8px 24px rgba(197, 165, 90, 0.45),
+        0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.surprise-btn:active {
+    transform: translateY(-1px) scale(0.98);
+}
+
+.surprise-btn__icon {
+    font-size: 1.25rem;
+    margin-right: 0.5rem;
+    display: inline;
+}
+
+.surprise-btn__text {
+    display: inline;
+    font-family: var(--font-serif);
+    font-size: 1.125rem;
+    font-style: italic;
+}
+
+@media (max-width: 600px) {
+    .carousel {
+        padding: 0 0.5rem;
+    }
+
+    .carousel-card {
+        flex: 0 0 220px;
+    }
+
+    .carousel-card__frame {
+        width: 180px;
+        height: 150px;
+    }
+
+    .carousel__nav {
+        display: none;
+    }
 }
 
 /* Mood Grid - distinct colored pills */
@@ -1429,16 +1487,8 @@ main {
 /* Skeleton Grid */
 .skeleton-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: var(--spacing-xl);
-}
-
-@media (max-width: 900px) {
-    .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 600px) {
-    .skeleton-grid { grid-template-columns: 1fr; }
 }
 
 .skeleton-card__frame {
