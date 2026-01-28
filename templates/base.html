@@ -6,7 +6,7 @@
     <title>{% block title %}Art Stuff{% endblock %}</title>
 
     <!-- PWA Meta Tags -->
-    <meta name="description" content="Art Stuff is a place to discover cool art from world-class museums. Browse, build a collection, and tell your friends.">
+    <meta name="description" content="Art Stuff: Discover masterworks from world-class museums. Build playlists of art that moves you. Share your taste with friends.">
     <meta name="theme-color" content="#C5A55A">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -26,7 +26,7 @@
             <nav class="site-nav">
                 <a href="/explore">Discover</a>
                 <a href="/search">Search</a>
-                <a href="/collection" class="nav-auth-required">Collection</a>
+                <a href="/collection" class="nav-auth-required">Collect</a>
             </nav>
             <div class="user-menu" id="userMenu">
                 <a href="/login" class="user-menu__login" id="loginLink">Sign In</a>
@@ -46,11 +46,11 @@
 
     <footer class="site-footer">
         <div class="container">
-            <p>A place to discover cool art stuff</p>
+            <p>Art Stuff is managed by a human. That human is Andrew. Email him at <a href="mailto:me@andrewginn.fun">me@andrewginn.fun</a> if you need anything.</p>
         </div>
     </footer>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(100000) | random }}"></script>
     <script>
         // Register service worker for PWA
         if ('serviceWorker' in navigator) {

@@ -120,6 +120,18 @@ def get_user_from_token(access_token):
     return None
 
 
+def reset_password_request(email):
+    """Send a password reset email to the user."""
+    client = get_client()
+    try:
+        client.auth.reset_password_for_email(email)
+        return {"success": True}
+    except Exception as e:
+        print(f"Reset password error: {e}")
+        # Don't reveal if email exists or not for security
+        return {"success": True}
+
+
 # ============================================
 # FAVORITES FUNCTIONS
 # ============================================
@@ -390,14 +402,15 @@ def get_all_tags(user_id):
 # JOURNAL FUNCTIONS
 # ============================================
 
-def add_journal_entry(favorite_id, entry_text, user_id):
+def add_journal_entry(favorite_id, entry_text, user_id, is_public=False):
     """Add a journal entry for a favorite."""
     client = get_client()
     try:
         result = client.table("journal_entries").insert({
             "favorite_id": favorite_id,
             "entry_text": entry_text,
-            "user_id": user_id
+            "user_id": user_id,
+            "is_public": is_public
         }).execute()
         if result.data:
             return result.data[0]["id"]
@@ -406,12 +419,15 @@ def add_journal_entry(favorite_id, entry_text, user_id):
     return None
 
 
-def update_journal_entry(entry_id, entry_text, user_id):
+def update_journal_entry(entry_id, entry_text, user_id, is_public=None):
     """Update a journal entry."""
     client = get_client()
     try:
+        update_data = {"entry_text": entry_text}
+        if is_public is not None:
+            update_data["is_public"] = is_public
         result = (client.table("journal_entries")
-                  .update({"entry_text": entry_text})
+                  .update(update_data)
                   .eq("id", entry_id)
                   .eq("user_id", user_id)
                   .execute())
@@ -449,6 +465,22 @@ def get_journal_entries(favorite_id, user_id):
         return result.data or []
     except Exception as e:
         print(f"Error getting journal entries: {e}")
+        return []
+
+
+def get_public_journal_entries(favorite_id):
+    """Get public journal entries for a favorite (for shared collections)."""
+    client = get_client()
+    try:
+        result = (client.table("journal_entries")
+                  .select("id, entry_text, created_at, is_public")
+                  .eq("favorite_id", favorite_id)
+                  .eq("is_public", True)
+                  .order("created_at", desc=True)
+                  .execute())
+        return result.data or []
+    except Exception as e:
+        print(f"Error getting public journal entries: {e}")
         return []
 
 
@@ -667,3 +699,243 @@ def get_collection_stats():
     except Exception as e:
         print(f"Error getting collection stats: {e}")
         return {"paintings": 0, "artists": 0, "museums": 0}
+
+
+# ============================================
+# COLLECTIONS FUNCTIONS
+# ============================================
+
+def create_collection(user_id, name, description=None):
+    """Create a new collection."""
+    client = get_client()
+    import re
+    import random
+    # Generate slug from name
+    slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+    slug = f"{slug}-{random.randint(1000, 9999)}"
+
+    try:
+        result = client.table("collections").insert({
+            "user_id": user_id,
+            "name": name,
+            "description": description,
+            "slug": slug,
+            "is_public": True
+        }).execute()
+        if result.data:
+            return result.data[0]
+    except Exception as e:
+        print(f"Error creating collection: {e}")
+    return None
+
+
+def get_user_collections(user_id):
+    """Get all collections for a user."""
+    client = get_client()
+    try:
+        result = (client.table("collections")
+                  .select("*")
+                  .eq("user_id", user_id)
+                  .order("created_at", desc=True)
+                  .execute())
+        collections = result.data or []
+        # Get item count and cover images for each collection
+        for col in collections:
+            items_result = (client.table("collection_items")
+                          .select("id, image_url")
+                          .eq("collection_id", col["id"])
+                          .order("position")
+                          .limit(4)
+                          .execute())
+            col["item_count"] = len(items_result.data) if items_result.data else 0
+            col["cover_images"] = [item["image_url"] for item in (items_result.data or []) if item.get("image_url")]
+
+            # Get accurate total count
+            count_result = (client.table("collection_items")
+                          .select("id", count="exact")
+                          .eq("collection_id", col["id"])
+                          .execute())
+            col["item_count"] = count_result.count or 0
+        return collections
+    except Exception as e:
+        print(f"Error getting collections: {e}")
+        return []
+
+
+def get_collection_by_slug(slug):
+    """Get a collection by its public slug."""
+    client = get_client()
+    try:
+        result = (client.table("collections")
+                  .select("*")
+                  .eq("slug", slug)
+                  .eq("is_public", True)
+                  .execute())
+        if result.data:
+            collection = result.data[0]
+            # Get items
+            items_result = (client.table("collection_items")
+                          .select("*")
+                          .eq("collection_id", collection["id"])
+                          .order("position")
+                          .execute())
+            collection["items"] = items_result.data or []
+            return collection
+    except Exception as e:
+        print(f"Error getting collection by slug: {e}")
+    return None
+
+
+def get_collection(collection_id, user_id):
+    """Get a collection with its items (owner only)."""
+    client = get_client()
+    try:
+        result = (client.table("collections")
+                  .select("*")
+                  .eq("id", collection_id)
+                  .eq("user_id", user_id)
+                  .execute())
+        if result.data:
+            collection = result.data[0]
+            items_result = (client.table("collection_items")
+                          .select("*")
+                          .eq("collection_id", collection_id)
+                          .order("position")
+                          .execute())
+            collection["items"] = items_result.data or []
+            return collection
+    except Exception as e:
+        print(f"Error getting collection: {e}")
+    return None
+
+
+def add_to_collection(collection_id, painting_data, user_id):
+    """Add a painting to a collection (verifies ownership)."""
+    client = get_client()
+    try:
+        # Verify ownership
+        col = (client.table("collections")
+               .select("id")
+               .eq("id", collection_id)
+               .eq("user_id", user_id)
+               .execute())
+        if not col.data:
+            return None
+
+        # Get current max position
+        items = (client.table("collection_items")
+                .select("position")
+                .eq("collection_id", collection_id)
+                .order("position", desc=True)
+                .limit(1)
+                .execute())
+        next_pos = (items.data[0]["position"] + 1) if items.data else 0
+
+        # Use thumbnail_url if available, fallback to image_url
+        image_url = painting_data.get("image_url") or painting_data.get("thumbnail_url")
+
+        insert_data = {
+            "collection_id": collection_id,
+            "external_id": str(painting_data.get("external_id", "")),
+            "museum": painting_data.get("museum", ""),
+            "title": painting_data.get("title", "Untitled"),
+            "artist": painting_data.get("artist", "Unknown"),
+            "image_url": image_url,
+            "date_display": painting_data.get("date_display"),
+            "position": next_pos
+        }
+        print(f"Inserting collection item: {insert_data}")
+        result = client.table("collection_items").insert(insert_data).execute()
+        print(f"Insert result: {result}")
+        if result.data:
+            return result.data[0]
+    except Exception as e:
+        if "duplicate" in str(e).lower() or "unique" in str(e).lower():
+            return {"exists": True}
+        print(f"Error adding to collection: {e}")
+        import traceback
+        traceback.print_exc()
+    return None
+
+
+def remove_from_collection(collection_id, item_id, user_id):
+    """Remove an item from a collection (verifies ownership)."""
+    client = get_client()
+    try:
+        # Verify ownership
+        col = (client.table("collections")
+               .select("id")
+               .eq("id", collection_id)
+               .eq("user_id", user_id)
+               .execute())
+        if not col.data:
+            return False
+
+        result = (client.table("collection_items")
+                  .delete()
+                  .eq("id", item_id)
+                  .eq("collection_id", collection_id)
+                  .execute())
+        return len(result.data) > 0 if result.data else False
+    except Exception as e:
+        print(f"Error removing from collection: {e}")
+        return False
+
+
+def delete_collection(collection_id, user_id):
+    """Delete a collection (cascade deletes items)."""
+    client = get_client()
+    try:
+        result = (client.table("collections")
+                  .delete()
+                  .eq("id", collection_id)
+                  .eq("user_id", user_id)
+                  .execute())
+        return len(result.data) > 0 if result.data else False
+    except Exception as e:
+        print(f"Error deleting collection: {e}")
+        return False
+
+
+def rename_collection(collection_id, new_name, user_id):
+    """Rename a collection."""
+    client = get_client()
+    try:
+        result = (client.table("collections")
+                  .update({"name": new_name})
+                  .eq("id", collection_id)
+                  .eq("user_id", user_id)
+                  .execute())
+        return result.data[0] if result.data else None
+    except Exception as e:
+        print(f"Error renaming collection: {e}")
+        return None
+
+
+def get_painting_collections(external_id, museum, user_id):
+    """Get all collections that contain a specific painting for a user."""
+    client = get_client()
+    try:
+        # Find all collection_items matching this painting
+        items_result = (client.table("collection_items")
+                       .select("collection_id")
+                       .eq("external_id", str(external_id))
+                       .eq("museum", museum)
+                       .execute())
+
+        if not items_result.data:
+            return []
+
+        collection_ids = [item["collection_id"] for item in items_result.data]
+
+        # Get collection details for those owned by this user
+        collections_result = (client.table("collections")
+                             .select("id, name, slug")
+                             .eq("user_id", user_id)
+                             .in_("id", collection_ids)
+                             .execute())
+
+        return collections_result.data or []
+    except Exception as e:
+        print(f"Error getting painting collections: {e}")
+        return []

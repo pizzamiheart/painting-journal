@@ -262,6 +262,20 @@
             color: var(--color-text);
         }
 
+        .forgot-password {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .forgot-password .btn-link {
+            font-size: 0.8125rem;
+            color: var(--color-text-muted);
+        }
+
+        .forgot-password .btn-link:hover {
+            color: var(--color-terracotta);
+        }
+
         @media (max-width: 540px) {
             .auth-page {
                 padding: 8px;
@@ -332,6 +346,10 @@
                 <span id="toggleText">Don't have an account?</span>
                 <button type="button" class="btn-link" id="toggleAuth">Sign Up</button>
             </div>
+
+            <div class="forgot-password" id="forgotPasswordSection">
+                <button type="button" class="btn-link" id="forgotPasswordBtn">Forgot password?</button>
+            </div>
         </div>
 
         <div class="auth-credit">
@@ -367,8 +385,14 @@
             confirmInput.required = true;
         }
 
+        const forgotBtn = document.getElementById('forgotPasswordBtn');
+        const forgotSection = document.getElementById('forgotPasswordSection');
+        const passwordGroup = document.querySelector('#password').closest('.form-group');
+        let isForgotPassword = false;
+
         toggleBtn.addEventListener('click', () => {
             isSignUp = !isSignUp;
+            isForgotPassword = false;
             title.textContent = isSignUp ? 'Create Account' : 'Sign In';
             subtitle.textContent = isSignUp ? 'Browse, discover, and collect some of the coolest visual art over centuries. Add your own notes and tags. Enjoy.' : 'Welcome back to your collection';
             submit.textContent = isSignUp ? 'Create Account' : 'Sign In';
@@ -376,6 +400,36 @@
             toggleBtn.textContent = isSignUp ? 'Sign In' : 'Sign Up';
             confirmGroup.style.display = isSignUp ? 'block' : 'none';
             confirmInput.required = isSignUp;
+            passwordGroup.style.display = 'block';
+            document.getElementById('password').required = true;
+            forgotSection.style.display = isSignUp ? 'none' : 'block';
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+        });
+
+        forgotBtn.addEventListener('click', () => {
+            isForgotPassword = true;
+            isSignUp = false;
+            title.textContent = 'Reset Password';
+            subtitle.textContent = 'Enter your email and we\'ll send you a reset link';
+            submit.textContent = 'Send Reset Link';
+            passwordGroup.style.display = 'none';
+            document.getElementById('password').required = false;
+            confirmGroup.style.display = 'none';
+            confirmInput.required = false;
+            forgotSection.innerHTML = '<button type="button" class="btn-link" id="backToSignIn">Back to Sign In</button>';
+            document.getElementById('backToSignIn').addEventListener('click', () => {
+                isForgotPassword = false;
+                title.textContent = 'Sign In';
+                subtitle.textContent = 'Welcome back to your collection';
+                submit.textContent = 'Sign In';
+                passwordGroup.style.display = 'block';
+                document.getElementById('password').required = true;
+                forgotSection.innerHTML = '<button type="button" class="btn-link" id="forgotPasswordBtn">Forgot password?</button>';
+                document.getElementById('forgotPasswordBtn').addEventListener('click', forgotBtn.onclick);
+                errorDiv.style.display = 'none';
+                successDiv.style.display = 'none';
+            });
             errorDiv.style.display = 'none';
             successDiv.style.display = 'none';
         });
@@ -387,6 +441,29 @@
 
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+
+            // Handle forgot password
+            if (isForgotPassword) {
+                submit.disabled = true;
+                submit.textContent = 'Sending...';
+                try {
+                    const response = await fetch('/api/auth/forgot-password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                    });
+                    const data = await response.json();
+                    successDiv.textContent = data.message || 'If an account exists, a reset link has been sent.';
+                    successDiv.style.display = 'block';
+                } catch (err) {
+                    errorDiv.textContent = 'Failed to send reset email. Please try again.';
+                    errorDiv.style.display = 'block';
+                } finally {
+                    submit.disabled = false;
+                    submit.textContent = 'Send Reset Link';
+                }
+                return;
+            }
 
             if (isSignUp) {
                 const confirm = document.getElementById('confirmPassword').value;

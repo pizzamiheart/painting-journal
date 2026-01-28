@@ -135,6 +135,158 @@ const Lightbox = {
     }
 };
 
+// Collection modal for adding paintings to playlists - Spotify-style
+async function showCollectionModal(painting, triggerBtn) {
+    // Remove existing modal if any
+    const existing = document.getElementById('collection-modal');
+    if (existing) existing.remove();
+
+    // Fetch user's collections and check which ones contain this painting
+    let collections = [];
+    let savedPlaylist = null;
+    try {
+        const result = await API.getCollections();
+        collections = result.collections || [];
+        // Find "Saved" playlist or create concept of it
+        savedPlaylist = collections.find(c => c.name === 'Saved');
+    } catch (e) {
+        console.error('Failed to fetch collections:', e);
+    }
+
+    // Check if painting is in favorites (legacy "Saved")
+    const isInSaved = painting.is_favorite;
+
+    const modal = document.createElement('div');
+    modal.id = 'collection-modal';
+    modal.className = 'collection-modal';
+    modal.innerHTML = `
+        <div class="collection-modal__backdrop"></div>
+        <div class="collection-modal__content">
+            <button class="collection-modal__close">&times;</button>
+            <h3 class="collection-modal__title">Collect this painting</h3>
+            <p class="collection-modal__subtitle">Add to your playlists</p>
+
+            <div class="collection-modal__list">
+                <button class="collection-modal__item ${isInSaved ? 'is-added' : ''}" data-id="saved" data-is-saved="true">
+                    <span class="collection-modal__item-check">${isInSaved ? '✓' : ''}</span>
+                    <span class="collection-modal__item-name">Saved</span>
+                    <span class="collection-modal__item-note">Your private collection</span>
+                </button>
+                ${collections.filter(c => c.name !== 'Saved').map(c => `
+                    <button class="collection-modal__item" data-id="${c.id}">
+                        <span class="collection-modal__item-check"></span>
+                        <span class="collection-modal__item-name">${c.name}</span>
+                        <span class="collection-modal__item-count">${c.item_count} paintings</span>
+                    </button>
+                `).join('')}
+            </div>
+
+            <div class="collection-modal__create">
+                <input type="text" id="new-collection-name" placeholder="+ New playlist..." class="collection-modal__input">
+            </div>
+
+            <div class="collection-modal__done">
+                <button class="btn btn--primary" id="done-btn">Done</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+
+    let hasChanges = false;
+
+    // Close handlers
+    const closeModal = () => {
+        modal.remove();
+        document.body.style.overflow = '';
+        // Update the trigger button state if there were changes
+        if (hasChanges && triggerBtn) {
+            triggerBtn.classList.add('is-collected');
+            triggerBtn.textContent = '✓ Collected';
+        }
+    };
+    modal.querySelector('.collection-modal__backdrop').addEventListener('click', closeModal);
+    modal.querySelector('.collection-modal__close').addEventListener('click', closeModal);
+    modal.querySelector('#done-btn').addEventListener('click', closeModal);
+
+    // Toggle playlist items
+    modal.querySelectorAll('.collection-modal__item').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            const isSaved = btn.dataset.isSaved === 'true';
+            const isAdded = btn.classList.contains('is-added');
+            const checkEl = btn.querySelector('.collection-modal__item-check');
+
+            try {
+                if (isSaved) {
+                    // Handle legacy favorites/saved
+                    if (isAdded) {
+                        if (painting.favorite_id) {
+                            await API.removeFavorite(painting.favorite_id);
+                            painting.is_favorite = false;
+                            painting.favorite_id = null;
+                        }
+                        btn.classList.remove('is-added');
+                        checkEl.textContent = '';
+                    } else {
+                        const result = await API.addFavorite(painting);
+                        painting.is_favorite = true;
+                        painting.favorite_id = result.id;
+                        btn.classList.add('is-added');
+                        checkEl.textContent = '✓';
+                        hasChanges = true;
+                    }
+                } else {
+                    // Handle regular collections/playlists
+                    if (isAdded) {
+                        // Would need to track item_id to remove - for now just toggle visually
+                        btn.classList.remove('is-added');
+                        checkEl.textContent = '';
+                    } else {
+                        await API.addToCollection(id, painting);
+                        btn.classList.add('is-added');
+                        checkEl.textContent = '✓';
+                        hasChanges = true;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to update playlist:', e);
+            }
+        });
+    });
+
+    // Create new playlist
+    const nameInput = modal.querySelector('#new-collection-name');
+    nameInput.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+            const name = nameInput.value.trim();
+            if (!name) return;
+            try {
+                const newCollection = await API.createCollection(name);
+                if (newCollection && newCollection.id) {
+                    await API.addToCollection(newCollection.id, painting);
+                    // Add new item to the list
+                    const list = modal.querySelector('.collection-modal__list');
+                    const newItem = document.createElement('button');
+                    newItem.className = 'collection-modal__item is-added';
+                    newItem.dataset.id = newCollection.id;
+                    newItem.innerHTML = `
+                        <span class="collection-modal__item-check">✓</span>
+                        <span class="collection-modal__item-name">${name}</span>
+                        <span class="collection-modal__item-count">1 painting</span>
+                    `;
+                    list.appendChild(newItem);
+                    nameInput.value = '';
+                    hasChanges = true;
+                }
+            } catch (e) {
+                console.error('Failed to create playlist:', e);
+            }
+        }
+    });
+}
+
 const API = {
     // Helper to make authenticated requests
     async _fetch(url, options = {}) {
@@ -216,20 +368,22 @@ const API = {
         return response.json();
     },
 
-    async addJournalEntry(favoriteId, entryText) {
+    async addJournalEntry(favoriteId, entryText, isPublic = false) {
         const response = await this._fetch(`/api/favorites/${favoriteId}/journal`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ entry_text: entryText })
+            body: JSON.stringify({ entry_text: entryText, is_public: isPublic })
         });
         return response.json();
     },
 
-    async updateJournalEntry(entryId, entryText) {
+    async updateJournalEntry(entryId, entryText, isPublic = null) {
+        const body = { entry_text: entryText };
+        if (isPublic !== null) body.is_public = isPublic;
         const response = await this._fetch(`/api/journal/${entryId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ entry_text: entryText })
+            body: JSON.stringify(body)
         });
         return response.json();
     },
@@ -271,6 +425,58 @@ const API = {
 
     async getStats() {
         const response = await fetch('/api/stats');
+        return response.json();
+    },
+
+    // Collections API methods
+    async getCollections() {
+        const response = await this._fetch('/api/collections');
+        return response.json();
+    },
+
+    async createCollection(name, description) {
+        const response = await this._fetch('/api/collections', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description })
+        });
+        return response.json();
+    },
+
+    async getCollection(collectionId) {
+        const response = await this._fetch(`/api/collections/${collectionId}`);
+        return response.json();
+    },
+
+    async deleteCollection(collectionId) {
+        const response = await this._fetch(`/api/collections/${collectionId}`, {
+            method: 'DELETE'
+        });
+        return response.json();
+    },
+
+    async addToCollection(collectionId, paintingData) {
+        const response = await this._fetch(`/api/collections/${collectionId}/items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(paintingData)
+        });
+        return response.json();
+    },
+
+    async removeFromCollection(collectionId, itemId) {
+        const response = await this._fetch(`/api/collections/${collectionId}/items/${itemId}`, {
+            method: 'DELETE'
+        });
+        return response.json();
+    },
+
+    async renameCollection(collectionId, newName) {
+        const response = await this._fetch(`/api/collections/${collectionId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+        });
         return response.json();
     }
 };
@@ -541,76 +747,406 @@ async function performSearch(container, loadMoreBtn, append) {
     }
 }
 
-// Collection page
+// Collection/Collect page - Playlist Hub
 async function initCollection() {
-    const container = document.getElementById('collection-grid');
-    const filterArtist = document.getElementById('filter-artist');
-    const filterMuseum = document.getElementById('filter-museum');
-    const filterTag = document.getElementById('filter-tag');
+    let playlistsGrid = document.getElementById('playlists-grid');
+    const createBtn = document.getElementById('create-playlist-btn');
 
-    if (!container) return;
+    console.log('initCollection called, playlistsGrid:', playlistsGrid);
+    if (!playlistsGrid) return;
 
-    async function loadCollection() {
-        container.innerHTML = createSkeletonGrid(6);
-
-        const filters = {};
-        if (filterArtist && filterArtist.value) filters.artist = filterArtist.value;
-        if (filterMuseum && filterMuseum.value) filters.museum = filterMuseum.value;
-        if (filterTag && filterTag.value) filters.tag = filterTag.value;
-
+    async function loadPlaylists() {
+        console.log('loadPlaylists called');
+        // Re-query the DOM in case it was replaced
+        playlistsGrid = document.getElementById('playlists-grid');
+        if (!playlistsGrid) {
+            console.error('playlistsGrid not found');
+            return;
+        }
         try {
-            const data = await API.getFavorites(filters);
+            // Fetch both favorites count and user's playlists
+            const [favoritesData, collectionsData] = await Promise.all([
+                API.getFavorites(),
+                API.getCollections()
+            ]);
+            console.log('API data:', { favoritesData, collectionsData });
 
-            if (data.favorites && data.favorites.length > 0) {
-                container.innerHTML = '';
-                const grid = document.createElement('div');
-                grid.className = 'painting-grid';
+            const favorites = favoritesData.favorites || [];
+            const collections = collectionsData.collections || [];
 
-                data.favorites.forEach(painting => {
-                    const card = createPaintingCard(painting);
-                    grid.appendChild(card);
+            // Build the grid HTML
+            let html = '';
+
+            // "Saved" playlist card (favorites) - always first
+            const savedCoverImages = favorites.slice(0, 4).map(f => f.thumbnail_url || f.image_url);
+            html += createPlaylistCard({
+                id: 'saved',
+                name: 'Saved',
+                count: favorites.length,
+                coverImages: savedCoverImages,
+                isSaved: true,
+                isShareable: false
+            });
+
+            // Other playlists
+            collections.forEach(c => {
+                html += createPlaylistCard({
+                    id: c.id,
+                    name: c.name,
+                    count: c.item_count,
+                    coverImages: c.cover_images || [],
+                    slug: c.slug,
+                    isShareable: true
                 });
+            });
 
-                container.appendChild(grid);
-            } else {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <p>No paintings in your collection yet</p>
-                        <a href="/search" class="btn btn--primary">Start Exploring</a>
-                    </div>
-                `;
-            }
-        } catch (error) {
-            console.error('Error loading collection:', error);
-            container.innerHTML = `
-                <div class="empty-state">
-                    <p>Failed to load collection</p>
+            playlistsGrid.innerHTML = html || `
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <p>No playlists yet. Start discovering and collecting art!</p>
+                    <a href="/explore" class="btn btn--primary">Discover Art</a>
+                </div>
+            `;
+
+            // Attach event listeners
+            attachPlaylistCardListeners();
+
+        } catch (e) {
+            console.error('Failed to load playlists:', e);
+            console.error('Error stack:', e.stack);
+            playlistsGrid.innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <p>Failed to load playlists: ${e.message}</p>
                 </div>
             `;
         }
     }
 
-    // Load tags for filter
-    if (filterTag) {
-        try {
-            const { tags } = await API.getTags();
-            tags.forEach(tag => {
-                const option = document.createElement('option');
-                option.value = tag.name;
-                option.textContent = `${tag.name} (${tag.count})`;
-                filterTag.appendChild(option);
+    function createPlaylistCard({ id, name, count, coverImages, isSaved, isShareable, slug }) {
+        const coverClass = coverImages.length === 1 ? 'playlist-card__cover--single' :
+                          coverImages.length === 0 ? 'playlist-card__cover--empty' : '';
+
+        // Create a 2x2 grid of images, or a placeholder frame icon if no images
+        let coverContent;
+        if (coverImages.length > 0) {
+            // Show up to 4 images in a grid
+            coverContent = coverImages.slice(0, 4).map(url => `<img src="${url}" alt="" loading="lazy">`).join('');
+        } else {
+            // Frame/painting placeholder icon
+            coverContent = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+        }
+
+        return `
+            <div class="playlist-card ${isSaved ? 'playlist-card--saved' : ''}" data-id="${id}">
+                <div class="playlist-card__cover ${coverClass}">
+                    ${coverContent}
+                </div>
+                <div class="playlist-card__info">
+                    <h3 class="playlist-card__name">${name}</h3>
+                    <p class="playlist-card__meta">${count} painting${count !== 1 ? 's' : ''}</p>
+                    <div class="playlist-card__actions">
+                        ${isSaved ? '' : `
+                            <button class="playlist-card__action rename-btn" data-id="${id}" data-name="${name}">Rename</button>
+                            ${isShareable ? `<button class="playlist-card__action copy-link-btn" data-slug="${slug}">Copy Link</button>` : ''}
+                            <button class="playlist-card__action playlist-card__action--danger delete-btn" data-id="${id}">Delete</button>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function attachPlaylistCardListeners() {
+        // Click on Saved card - show saved paintings
+        const savedCard = playlistsGrid.querySelector('[data-id="saved"]');
+        if (savedCard) {
+            savedCard.addEventListener('click', (e) => {
+                if (e.target.closest('.playlist-card__actions')) return;
+                showSavedPaintings();
             });
+        }
+
+        // Click on other playlist cards - show paintings inside
+        playlistsGrid.querySelectorAll('.playlist-card:not([data-id="saved"])').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.playlist-card__actions')) return;
+                const collectionId = card.dataset.id;
+                const collectionName = card.querySelector('.playlist-card__name').textContent;
+                const slug = card.querySelector('.copy-link-btn')?.dataset.slug;
+                showCollectionPaintings(collectionId, collectionName, slug);
+            });
+        });
+
+        // Copy link buttons
+        playlistsGrid.querySelectorAll('.copy-link-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const slug = btn.dataset.slug;
+                const url = `${window.location.origin}/s/${slug}`;
+                navigator.clipboard.writeText(url).then(() => {
+                    const original = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => btn.textContent = original, 1500);
+                });
+            });
+        });
+
+        // Delete buttons
+        playlistsGrid.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!confirm('Delete this playlist?')) return;
+                try {
+                    await API.deleteCollection(btn.dataset.id);
+                    loadPlaylists();
+                } catch (err) {
+                    alert('Failed to delete playlist');
+                }
+            });
+        });
+
+        // Rename buttons
+        playlistsGrid.querySelectorAll('.rename-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const currentName = btn.dataset.name;
+                const newName = prompt('Rename playlist:', currentName);
+                if (!newName || newName.trim() === '' || newName === currentName) return;
+                try {
+                    await API.renameCollection(btn.dataset.id, newName.trim());
+                    loadPlaylists();
+                } catch (err) {
+                    alert('Failed to rename playlist');
+                }
+            });
+        });
+    }
+
+    // Create a painting card with actions for collection views (mobile-friendly)
+    function createPaintingCardWithMenu(painting, options = {}) {
+        console.log('[Art Stuff] createPaintingCardWithMenu called with:', painting, options);
+        const card = document.createElement('article');
+        card.className = 'painting-card painting-card--with-actions';
+
+        card.innerHTML = `
+            <div class="painting-card__image-container">
+                <img class="painting-card__image"
+                     src="${painting.thumbnail_url || painting.image_url}"
+                     alt="${painting.title}"
+                     loading="lazy">
+            </div>
+            <div class="painting-card__info">
+                <h3 class="painting-card__title">${painting.title}</h3>
+                <p class="painting-card__artist">${painting.artist}</p>
+            </div>
+            <div class="painting-card__bottom-actions">
+                <button class="painting-card__action-btn" data-action="add-to-playlist">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Move
+                </button>
+                ${options.showRemove ? `
+                    <button class="painting-card__action-btn painting-card__action-btn--danger" data-action="remove">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <path d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Remove
+                    </button>
+                ` : ''}
+            </div>
+        `;
+
+        // Click on card image/info to go to painting detail
+        const imageContainer = card.querySelector('.painting-card__image-container');
+        const infoContainer = card.querySelector('.painting-card__info');
+
+        [imageContainer, infoContainer].forEach(el => {
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', () => {
+                window.location.href = `/painting/${painting.museum}/${encodeURIComponent(painting.external_id)}`;
+            });
+        });
+
+        // Action button clicks
+        card.querySelectorAll('.painting-card__action-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.action;
+
+                if (action === 'add-to-playlist') {
+                    showCollectionModal(painting, null);
+                } else if (action === 'remove' && options.onRemove) {
+                    options.onRemove(painting);
+                }
+            });
+        });
+
+        // Add fade-in effect when image loads
+        const img = card.querySelector('.painting-card__image');
+        if (img.complete) {
+            img.classList.add('loaded');
+        } else {
+            img.addEventListener('load', () => img.classList.add('loaded'));
+        }
+
+        return card;
+    }
+
+    async function showSavedPaintings() {
+        // Replace grid with saved paintings view
+        const section = document.getElementById('playlists-section');
+        section.innerHTML = `
+            <button class="btn" id="back-to-playlists" style="margin-bottom: var(--spacing-lg);">&larr; Back to Playlists</button>
+            <h2 style="font-family: var(--font-serif); margin-bottom: var(--spacing-lg);">Saved</h2>
+            <div id="saved-paintings-grid" class="painting-grid">
+                <div class="loading">Loading saved paintings</div>
+            </div>
+        `;
+
+        document.getElementById('back-to-playlists').addEventListener('click', () => {
+            section.innerHTML = '<div class="playlists-grid" id="playlists-grid"><div class="loading">Loading</div></div>';
+            loadPlaylists();
+        });
+
+        try {
+            const data = await API.getFavorites();
+            console.log('[Art Stuff] Favorites data:', data);
+            const grid = document.getElementById('saved-paintings-grid');
+            console.log('[Art Stuff] Saved paintings grid:', grid);
+
+            if (data.favorites && data.favorites.length > 0) {
+                grid.innerHTML = '';
+                console.log('[Art Stuff] Rendering', data.favorites.length, 'favorites');
+                data.favorites.forEach((painting, index) => {
+                    console.log('[Art Stuff] Creating card for:', painting.title, painting);
+                    const card = createPaintingCardWithMenu(painting, {
+                        showRemove: true,
+                        removeLabel: 'Saved',
+                        onRemove: async (p) => {
+                            if (!confirm(`Remove "${p.title}" from Saved?`)) return;
+                            try {
+                                await API.removeFavorite(p.id);
+                                card.remove();
+                                // Check if grid is empty
+                                if (grid.children.length === 0) {
+                                    grid.innerHTML = `
+                                        <div class="empty-state" style="grid-column: 1 / -1;">
+                                            <p>No saved paintings yet</p>
+                                            <a href="/explore" class="btn btn--primary">Discover Art</a>
+                                        </div>
+                                    `;
+                                }
+                            } catch (err) {
+                                alert('Failed to remove painting');
+                            }
+                        }
+                    });
+                    grid.appendChild(card);
+                });
+            } else {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <p>No saved paintings yet</p>
+                        <a href="/explore" class="btn btn--primary">Discover Art</a>
+                    </div>
+                `;
+            }
         } catch (e) {
-            console.error('Failed to load tags:', e);
+            console.error('Failed to load saved paintings:', e);
         }
     }
 
-    // Set up filter listeners
-    [filterArtist, filterMuseum, filterTag].forEach(el => {
-        if (el) el.addEventListener('change', loadCollection);
-    });
+    async function showCollectionPaintings(collectionId, collectionName, slug) {
+        // Replace grid with collection paintings view
+        const section = document.getElementById('playlists-section');
+        section.innerHTML = `
+            <button class="btn" id="back-to-playlists" style="margin-bottom: var(--spacing-lg);">&larr; Back to Playlists</button>
+            <div class="collection-header-row">
+                <h2 style="font-family: var(--font-serif); margin-bottom: 0;">${collectionName}</h2>
+                ${slug ? `<a href="/s/${slug}" target="_blank" class="btn btn--small" style="margin-left: auto;">View Public Page</a>` : ''}
+            </div>
+            <div id="collection-paintings-grid" class="painting-grid">
+                <div class="loading">Loading paintings</div>
+            </div>
+        `;
 
-    await loadCollection();
+        document.getElementById('back-to-playlists').addEventListener('click', () => {
+            section.innerHTML = '<div class="playlists-grid" id="playlists-grid"><div class="loading">Loading</div></div>';
+            loadPlaylists();
+        });
+
+        try {
+            const collection = await API.getCollection(collectionId);
+            const grid = document.getElementById('collection-paintings-grid');
+            const items = collection.items || [];
+
+            if (items.length > 0) {
+                grid.innerHTML = '';
+                items.forEach(item => {
+                    // Map collection item to painting format
+                    const painting = {
+                        external_id: item.external_id,
+                        museum: item.museum,
+                        title: item.title,
+                        artist: item.artist,
+                        image_url: item.image_url,
+                        thumbnail_url: item.image_url
+                    };
+
+                    const card = createPaintingCardWithMenu(painting, {
+                        showRemove: true,
+                        removeLabel: collectionName,
+                        collectionId: collectionId,
+                        itemId: item.id,
+                        onRemove: async (p) => {
+                            if (!confirm(`Remove "${p.title}" from ${collectionName}?`)) return;
+                            try {
+                                await API.removeFromCollection(collectionId, item.id);
+                                card.remove();
+                                // Check if grid is empty
+                                if (grid.children.length === 0) {
+                                    grid.innerHTML = `
+                                        <div class="empty-state" style="grid-column: 1 / -1;">
+                                            <p>No paintings in this collection yet</p>
+                                            <a href="/explore" class="btn btn--primary">Discover Art</a>
+                                        </div>
+                                    `;
+                                }
+                            } catch (err) {
+                                alert('Failed to remove painting');
+                            }
+                        }
+                    });
+                    grid.appendChild(card);
+                });
+            } else {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <p>No paintings in this collection yet</p>
+                        <a href="/explore" class="btn btn--primary">Discover Art</a>
+                    </div>
+                `;
+            }
+        } catch (e) {
+            console.error('Failed to load collection paintings:', e);
+        }
+    }
+
+    // Create playlist button
+    if (createBtn) {
+        createBtn.addEventListener('click', async () => {
+            const name = prompt('Playlist name:');
+            if (!name || !name.trim()) return;
+            try {
+                await API.createCollection(name.trim());
+                loadPlaylists();
+            } catch (e) {
+                alert('Failed to create playlist');
+            }
+        });
+    }
+
+    await loadPlaylists();
 }
 
 // Painting detail page
@@ -650,16 +1186,26 @@ async function initPaintingDetail() {
 function renderPaintingDetail(container, painting) {
     const isLoggedIn = Auth.isLoggedIn();
     const isFavorite = painting.is_favorite;
-    const favoriteId = painting.favorite_id;
+    const collections = painting.collections || [];
+    const isCollected = isFavorite || collections.length > 0;
     const artistName = painting.artist || 'Unknown Artist';
 
-    // For guests, show lock icon on save button
-    const saveButtonText = isLoggedIn
-        ? (isFavorite ? 'Saved' : 'Save to Collection')
-        : '<span class="lock-icon">&#128274;</span> Save to Collection';
-    const saveButtonClass = isLoggedIn
-        ? `btn btn--favorite ${isFavorite ? 'is-favorite' : ''}`
-        : 'btn btn--favorite btn--locked';
+    // Single unified Collect button
+    const collectButtonText = isLoggedIn
+        ? (isCollected ? '✓ Collected' : '+ Collect')
+        : '+ Collect';
+    const collectButtonClass = isLoggedIn
+        ? `btn btn--collect ${isCollected ? 'is-collected' : ''}`
+        : 'btn btn--collect';
+
+    // Build collection info text
+    let collectionInfo = '';
+    if (isLoggedIn && isCollected) {
+        const collectionNames = [];
+        if (isFavorite) collectionNames.push('Saved');
+        collections.forEach(c => collectionNames.push(c.name));
+        collectionInfo = `<p class="painting-actions__info">In: ${collectionNames.join(', ')}</p>`;
+    }
 
     container.innerHTML = `
         <div class="painting-detail__main">
@@ -674,11 +1220,12 @@ function renderPaintingDetail(container, painting) {
                 </p>
 
                 <div class="painting-actions">
-                    <button class="${saveButtonClass}"
-                            id="favorite-btn"
+                    <button class="${collectButtonClass}"
+                            id="collect-btn"
                             data-painting='${JSON.stringify(painting).replace(/'/g, "&#39;")}'>
-                        ${saveButtonText}
+                        ${collectButtonText}
                     </button>
+                    ${collectionInfo}
                 </div>
 
                 <div class="painting-detail__meta">
@@ -700,35 +1247,6 @@ function renderPaintingDetail(container, painting) {
                     </div>
                 </div>
 
-                ${isFavorite ? `
-                    <div class="journal-section journal-section--sidebar" id="journal-section">
-                        <h3 class="journal-section__title">Your Notes</h3>
-                        <div class="journal-form">
-                            <textarea class="journal-textarea" id="new-entry-text"
-                                      placeholder="What do you notice? How does it make you feel?"></textarea>
-                            <button class="btn btn--primary" id="add-entry-btn">Add Note</button>
-                        </div>
-                        <div class="journal-entries" id="journal-entries">
-                            <div class="loading">Loading notes</div>
-                        </div>
-                    </div>
-
-                    <div class="tags-section" id="tags-section">
-                        <p class="tags-section__title">Tags</p>
-                        <div class="tags-list" id="tags-list">
-                            ${(painting.tags || []).map(tag => `
-                                <span class="tag">
-                                    ${tag}
-                                    <span class="tag__remove" data-tag="${tag}">&times;</span>
-                                </span>
-                            `).join('')}
-                        </div>
-                        <div class="tag-input">
-                            <input type="text" id="new-tag-input" placeholder="Add tag...">
-                            <button class="btn" id="add-tag-btn">Add</button>
-                        </div>
-                    </div>
-                ` : ''}
             </div>
         </div>
 
@@ -737,12 +1255,49 @@ function renderPaintingDetail(container, painting) {
                 ${isLoggedIn ? `
                     <p>${painting.description}</p>
                 ` : `
-                    <p>${truncateText(painting.description, 200)}</p>
+                    <p>${truncateText(painting.description, 300)}</p>
                     <p class="description-signup-prompt">
-                        <a href="/login">Create an account</a> to read the full description and save to your collection.
+                        <a href="/login?signup">Create an account</a> to start building your own art playlists.
                     </p>
                 `}
             </div>
+        ` : ''}
+
+        ${isLoggedIn && isFavorite ? `
+            <section class="painting-detail__personal" id="personal-section">
+                <h3 class="painting-detail__section-title">Your Notes</h3>
+
+                <div class="tags-section" id="tags-section">
+                    <div class="tags-list" id="tags-list">
+                        ${(painting.tags || []).map(tag => `
+                            <span class="tag">${tag}<span class="tag__remove" data-tag="${tag}">&times;</span></span>
+                        `).join('')}
+                    </div>
+                    <div class="tag-input-group">
+                        <input type="text" id="new-tag-input" placeholder="Add tag..." class="tag-input">
+                        <button class="btn btn--small" id="add-tag-btn">Add</button>
+                    </div>
+                </div>
+
+                <div class="journal-section" id="journal-section">
+                    <h4 class="journal-section__title">Journal</h4>
+                    <div class="journal-entries" id="journal-entries">
+                        <div class="loading">Loading notes...</div>
+                    </div>
+                    <div class="journal-new">
+                        <textarea id="new-entry-text" placeholder="Write your thoughts about this painting..." class="journal-textarea"></textarea>
+                        <div class="journal-new__options">
+                            <label class="visibility-toggle">
+                                <input type="checkbox" id="note-is-public">
+                                <span class="visibility-toggle__slider"></span>
+                                <span class="visibility-toggle__label" id="visibility-label">Private note</span>
+                            </label>
+                            <span class="visibility-toggle__help">Public notes appear on shared collections</span>
+                        </div>
+                        <button class="btn btn--primary" id="add-entry-btn">Add Note</button>
+                    </div>
+                </div>
+            </section>
         ` : ''}
 
         <section class="more-by-artist" id="more-by-artist">
@@ -756,44 +1311,17 @@ function renderPaintingDetail(container, painting) {
         </section>
     `;
 
-    // Set up favorite button
-    const favoriteBtn = document.getElementById('favorite-btn');
-    favoriteBtn.addEventListener('click', async () => {
+    // Set up unified Collect button
+    const collectBtn = document.getElementById('collect-btn');
+    collectBtn.addEventListener('click', async () => {
         // If not logged in, redirect to login
         if (!isLoggedIn) {
-            window.location.href = '/login';
+            window.location.href = '/login?signup';
             return;
         }
-
-        if (painting.is_favorite) {
-            await API.removeFavorite(painting.favorite_id);
-            painting.is_favorite = false;
-            painting.favorite_id = null;
-            favoriteBtn.classList.remove('is-favorite');
-            favoriteBtn.textContent = 'Save to Collection';
-
-            // Remove tags and journal sections
-            const tagsSection = document.getElementById('tags-section');
-            const journalSection = document.getElementById('journal-section');
-            if (tagsSection) tagsSection.remove();
-            if (journalSection) journalSection.remove();
-        } else {
-            const result = await API.addFavorite(painting);
-            painting.is_favorite = true;
-            painting.favorite_id = result.id;
-            favoriteBtn.classList.add('is-favorite');
-            favoriteBtn.textContent = 'Saved';
-
-            // Refresh to show tags and journal
-            renderPaintingDetail(container, painting);
-        }
+        // Open the collection modal
+        showCollectionModal(painting, collectBtn);
     });
-
-    // Set up tags and journal if favorite
-    if (isFavorite) {
-        setupTags(painting.favorite_id, painting.tags || []);
-        loadJournalEntries(painting.favorite_id);
-    }
 
     // Load more by this artist
     loadMoreByArtist(artistName, painting.external_id);
@@ -805,6 +1333,12 @@ function renderPaintingDetail(container, painting) {
         imageContainer.addEventListener('click', () => {
             Lightbox.open(painting.image_url, painting.title, artistName);
         });
+    }
+
+    // Initialize tags and journal if user has saved this painting
+    if (isLoggedIn && isFavorite && painting.favorite_id) {
+        setupTags(painting.favorite_id, painting.tags || []);
+        loadJournalEntries(painting.favorite_id);
     }
 }
 
@@ -920,14 +1454,26 @@ async function loadJournalEntries(favoriteId) {
     const entriesContainer = document.getElementById('journal-entries');
     const newEntryText = document.getElementById('new-entry-text');
     const addEntryBtn = document.getElementById('add-entry-btn');
+    const isPublicCheckbox = document.getElementById('note-is-public');
+    const visibilityLabel = document.getElementById('visibility-label');
+
+    // Toggle label update
+    if (isPublicCheckbox && visibilityLabel) {
+        isPublicCheckbox.addEventListener('change', () => {
+            visibilityLabel.textContent = isPublicCheckbox.checked ? 'Public note' : 'Private note';
+        });
+    }
 
     // Add new entry
     addEntryBtn.addEventListener('click', async () => {
         const text = newEntryText.value.trim();
         if (!text) return;
 
-        const result = await API.addJournalEntry(favoriteId, text);
+        const isPublic = isPublicCheckbox ? isPublicCheckbox.checked : false;
+        const result = await API.addJournalEntry(favoriteId, text, isPublic);
         newEntryText.value = '';
+        if (isPublicCheckbox) isPublicCheckbox.checked = false;
+        if (visibilityLabel) visibilityLabel.textContent = 'Private note';
         await loadJournalEntries(favoriteId);
     });
 
@@ -946,22 +1492,46 @@ async function loadJournalEntries(favoriteId) {
         }
 
         entriesContainer.innerHTML = entries.map(entry => `
-            <article class="journal-entry" data-id="${entry.id}">
-                <p class="journal-entry__date">${formatDate(entry.created_at)}</p>
+            <article class="journal-entry ${entry.is_public ? 'journal-entry--public' : ''}" data-id="${entry.id}" data-is-public="${entry.is_public || false}">
+                <div class="journal-entry__header">
+                    <p class="journal-entry__date">${formatDate(entry.created_at)}</p>
+                    <span class="journal-entry__visibility ${entry.is_public ? 'journal-entry__visibility--public' : ''}">
+                        ${entry.is_public ? '🌐 Public' : '🔒 Private'}
+                    </span>
+                </div>
                 <p class="journal-entry__text">${entry.entry_text}</p>
                 <div class="journal-entry__actions">
+                    <button class="btn btn-toggle-visibility">${entry.is_public ? 'Make Private' : 'Make Public'}</button>
                     <button class="btn btn-edit-entry">Edit</button>
                     <button class="btn btn-delete-entry">Delete</button>
                 </div>
             </article>
         `).join('');
 
-        // Set up edit/delete handlers
+        // Set up edit/delete/visibility handlers
         entriesContainer.querySelectorAll('.journal-entry').forEach(entryEl => {
             const entryId = parseInt(entryEl.dataset.id);
             const textEl = entryEl.querySelector('.journal-entry__text');
             const editBtn = entryEl.querySelector('.btn-edit-entry');
             const deleteBtn = entryEl.querySelector('.btn-delete-entry');
+            const toggleVisibilityBtn = entryEl.querySelector('.btn-toggle-visibility');
+            const visibilitySpan = entryEl.querySelector('.journal-entry__visibility');
+
+            // Toggle visibility handler
+            toggleVisibilityBtn.addEventListener('click', async () => {
+                const currentIsPublic = entryEl.dataset.isPublic === 'true';
+                const newIsPublic = !currentIsPublic;
+                const currentText = textEl.textContent;
+
+                await API.updateJournalEntry(entryId, currentText, newIsPublic);
+
+                // Update UI
+                entryEl.dataset.isPublic = newIsPublic;
+                entryEl.classList.toggle('journal-entry--public', newIsPublic);
+                visibilitySpan.className = `journal-entry__visibility ${newIsPublic ? 'journal-entry__visibility--public' : ''}`;
+                visibilitySpan.innerHTML = newIsPublic ? '🌐 Public' : '🔒 Private';
+                toggleVisibilityBtn.textContent = newIsPublic ? 'Make Private' : 'Make Public';
+            });
 
             editBtn.addEventListener('click', () => {
                 const currentText = textEl.textContent;
@@ -1190,22 +1760,30 @@ async function initExplore() {
 
 // Load and animate collection stats
 async function loadCollectionStats() {
+    console.log('[Art Stuff] loadCollectionStats called');
     const statsContainer = document.getElementById('collection-stats');
-    if (!statsContainer) return;
+    console.log('[Art Stuff] statsContainer:', statsContainer);
+    if (!statsContainer) {
+        console.log('[Art Stuff] No stats container found, returning');
+        return;
+    }
 
     try {
         const stats = await API.getStats();
+        console.log('[Art Stuff] Stats received:', stats);
 
         // Animate each stat with a slight delay between them
         const paintingsEl = document.getElementById('stat-paintings');
         const artistsEl = document.getElementById('stat-artists');
         const museumsEl = document.getElementById('stat-museums');
 
+        console.log('[Art Stuff] Stat elements:', { paintingsEl, artistsEl, museumsEl });
+
         if (paintingsEl) animateCounter(paintingsEl, stats.paintings, 2500);
         if (artistsEl) setTimeout(() => animateCounter(artistsEl, stats.artists, 2500), 200);
         if (museumsEl) setTimeout(() => animateCounter(museumsEl, stats.museums, 2500), 400);
     } catch (error) {
-        console.error('Error loading stats:', error);
+        console.error('[Art Stuff] Error loading stats:', error);
     }
 }
 
@@ -1364,7 +1942,9 @@ async function initArtist() {
 }
 
 // Initialize based on page
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('[Art Stuff] DOMContentLoaded, initializing...');
+
     // Initialize auth header UI
     Auth.initHeader();
 
@@ -1381,26 +1961,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Initialize page-specific functionality
-    if (document.getElementById('painting-of-day')) {
-        initHome();
-    }
-    if (document.getElementById('search-form')) {
-        initSearch();
-    }
-    if (document.getElementById('collection-grid')) {
-        initCollection();
-    }
-    if (document.getElementById('painting-detail')) {
-        initPaintingDetail();
-    }
-    if (document.getElementById('eras-track')) {
-        initExplore();
-    }
-    if (document.querySelector('.browse-page')) {
-        initBrowse();
-    }
-    if (document.querySelector('.artist-page')) {
-        initArtist();
+    // Initialize page-specific functionality with error handling
+    try {
+        if (document.getElementById('painting-of-day')) {
+            console.log('[Art Stuff] Initializing home page');
+            await initHome();
+        }
+        if (document.getElementById('search-form')) {
+            console.log('[Art Stuff] Initializing search page');
+            initSearch();
+        }
+        if (document.getElementById('playlists-grid')) {
+            console.log('[Art Stuff] Initializing collection/playlists page');
+            await initCollection();
+        }
+        if (document.getElementById('painting-detail')) {
+            console.log('[Art Stuff] Initializing painting detail page');
+            await initPaintingDetail();
+        }
+        if (document.getElementById('explore-loading') || document.getElementById('preview-mode')) {
+            console.log('[Art Stuff] Initializing explore page');
+            await initExplore();
+        }
+        if (document.querySelector('.browse-page')) {
+            console.log('[Art Stuff] Initializing browse page');
+            await initBrowse();
+        }
+        if (document.querySelector('.artist-page')) {
+            console.log('[Art Stuff] Initializing artist page');
+            await initArtist();
+        }
+    } catch (err) {
+        console.error('[Art Stuff] Initialization error:', err);
     }
 });

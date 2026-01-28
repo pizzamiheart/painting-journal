@@ -99,6 +99,18 @@ def api_get_user():
     return jsonify({"user": None})
 
 
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def api_forgot_password():
+    """Send password reset email."""
+    data = request.get_json()
+    if not data or not data.get('email'):
+        return jsonify({"error": "Email is required"}), 400
+
+    result = db.reset_password_request(data['email'])
+    # Always return success to not reveal if email exists
+    return jsonify({"message": "If an account exists with that email, a reset link has been sent."})
+
+
 # Page routes
 @app.route('/')
 def home():
@@ -273,18 +285,24 @@ def api_get_painting(museum, external_id):
     if not painting:
         return jsonify({"error": "Painting not found"}), 404
 
-    # Check if it's a favorite for the current user
+    # Check if it's a favorite and in any collections for the current user
     user = get_current_user()
     painting['is_favorite'] = False
     painting['favorite_id'] = None
     painting['tags'] = []
+    painting['collections'] = []
 
     if user:
+        # Check favorites (Saved)
         favorite = db.get_favorite_by_external_id(external_id, museum, user['id'])
         if favorite:
             painting['is_favorite'] = True
             painting['favorite_id'] = favorite['id']
             painting['tags'] = favorite.get('tags', [])
+
+        # Check collections (playlists)
+        collections = db.get_painting_collections(external_id, museum, user['id'])
+        painting['collections'] = collections
 
     return jsonify(painting)
 
@@ -398,7 +416,8 @@ def api_add_journal_entry(favorite_id):
     if not data or not data.get('entry_text'):
         return jsonify({"error": "Entry text is required"}), 400
 
-    entry_id = db.add_journal_entry(favorite_id, data['entry_text'], g.user['id'])
+    is_public = data.get('is_public', False)
+    entry_id = db.add_journal_entry(favorite_id, data['entry_text'], g.user['id'], is_public)
     if entry_id:
         return jsonify({"id": entry_id, "message": "Journal entry added"})
     return jsonify({"error": "Failed to add journal entry"}), 500
@@ -412,7 +431,8 @@ def api_update_journal_entry(entry_id):
     if not data or not data.get('entry_text'):
         return jsonify({"error": "Entry text is required"}), 400
 
-    if db.update_journal_entry(entry_id, data['entry_text'], g.user['id']):
+    is_public = data.get('is_public')
+    if db.update_journal_entry(entry_id, data['entry_text'], g.user['id'], is_public):
         return jsonify({"message": "Journal entry updated"})
     return jsonify({"error": "Journal entry not found"}), 404
 
@@ -424,6 +444,103 @@ def api_delete_journal_entry(entry_id):
     if db.delete_journal_entry(entry_id, g.user['id']):
         return jsonify({"message": "Journal entry deleted"})
     return jsonify({"error": "Journal entry not found"}), 404
+
+
+# Collections API
+@app.route('/api/collections', methods=['GET'])
+@require_auth
+def api_get_collections():
+    """Get all collections for the current user."""
+    collections = db.get_user_collections(g.user['id'])
+    return jsonify({"collections": collections})
+
+
+@app.route('/api/collections', methods=['POST'])
+@require_auth
+def api_create_collection():
+    """Create a new collection."""
+    data = request.get_json()
+    if not data or not data.get('name'):
+        return jsonify({"error": "Collection name is required"}), 400
+
+    collection = db.create_collection(
+        g.user['id'],
+        data['name'],
+        data.get('description')
+    )
+    if collection:
+        return jsonify(collection)
+    return jsonify({"error": "Failed to create collection"}), 500
+
+
+@app.route('/api/collections/<collection_id>')
+@require_auth
+def api_get_collection(collection_id):
+    """Get a collection with its items."""
+    collection = db.get_collection(collection_id, g.user['id'])
+    if not collection:
+        return jsonify({"error": "Collection not found"}), 404
+    return jsonify(collection)
+
+
+@app.route('/api/collections/<collection_id>', methods=['DELETE'])
+@require_auth
+def api_delete_collection(collection_id):
+    """Delete a collection."""
+    if db.delete_collection(collection_id, g.user['id']):
+        return jsonify({"message": "Collection deleted"})
+    return jsonify({"error": "Collection not found"}), 404
+
+
+@app.route('/api/collections/<collection_id>', methods=['PATCH'])
+@require_auth
+def api_rename_collection(collection_id):
+    """Rename a collection."""
+    data = request.get_json()
+    if not data or not data.get('name'):
+        return jsonify({"error": "New name is required"}), 400
+
+    result = db.rename_collection(collection_id, data['name'], g.user['id'])
+    if result:
+        return jsonify(result)
+    return jsonify({"error": "Collection not found"}), 404
+
+
+@app.route('/api/collections/<collection_id>/items', methods=['POST'])
+@require_auth
+def api_add_to_collection(collection_id):
+    """Add a painting to a collection."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Painting data is required"}), 400
+
+    print(f"Adding to collection {collection_id}: {data}")
+    result = db.add_to_collection(collection_id, data, g.user['id'])
+    print(f"Result: {result}")
+    if result:
+        if result.get("exists"):
+            return jsonify({"message": "Already in collection"})
+        return jsonify({"message": "Added to collection", "item": result})
+    return jsonify({"error": "Failed to add to collection"}), 500
+
+
+@app.route('/api/collections/<collection_id>/items/<item_id>', methods=['DELETE'])
+@require_auth
+def api_remove_from_collection(collection_id, item_id):
+    """Remove a painting from a collection."""
+    if db.remove_from_collection(collection_id, item_id, g.user['id']):
+        return jsonify({"message": "Removed from collection"})
+    return jsonify({"error": "Item not found"}), 404
+
+
+# Public collection page
+@app.route('/s/<slug>')
+def public_collection(slug):
+    """View a public collection."""
+    collection = db.get_collection_by_slug(slug)
+    if not collection:
+        return render_template('404.html'), 404
+    return render_template('public_collection.html', collection=collection)
 
 
 def open_browser():
