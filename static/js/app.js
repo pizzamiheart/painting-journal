@@ -204,6 +204,13 @@ async function showCollectionModal(painting, triggerBtn) {
         console.error('Failed to fetch collections:', e);
     }
 
+    // Get IDs of collections this painting is already in
+    const paintingCollectionIds = (painting.collections || []).map(c => c.id);
+
+    // Separate into "already in" and "not in" for Spotify-style display
+    const inCollections = collections.filter(c => paintingCollectionIds.includes(c.id));
+    const otherCollections = collections.filter(c => !paintingCollectionIds.includes(c.id));
+
     const modal = document.createElement('div');
     modal.id = 'collection-modal';
     modal.className = 'collection-modal';
@@ -215,15 +222,29 @@ async function showCollectionModal(painting, triggerBtn) {
             <p class="collection-modal__subtitle">Choose a collection for this painting</p>
 
             <div class="collection-modal__list">
-                ${collections.length > 0 ? collections.map(c => `
-                    <button class="collection-modal__item" data-id="${c.id}">
-                        <span class="collection-modal__item-check"></span>
-                        <span class="collection-modal__item-name">${c.name}</span>
-                        <span class="collection-modal__item-count">${c.item_count} paintings</span>
-                    </button>
-                `).join('') : `
+                ${inCollections.length > 0 ? `
+                    <p class="collection-modal__section-label">Already in</p>
+                    ${inCollections.map(c => `
+                        <button class="collection-modal__item is-added" data-id="${c.id}">
+                            <span class="collection-modal__item-check">✓</span>
+                            <span class="collection-modal__item-name">${c.name}</span>
+                            <span class="collection-modal__item-count">${c.item_count} paintings</span>
+                        </button>
+                    `).join('')}
+                ` : ''}
+                ${otherCollections.length > 0 ? `
+                    ${inCollections.length > 0 ? '<p class="collection-modal__section-label">Add to</p>' : ''}
+                    ${otherCollections.map(c => `
+                        <button class="collection-modal__item" data-id="${c.id}">
+                            <span class="collection-modal__item-check"></span>
+                            <span class="collection-modal__item-name">${c.name}</span>
+                            <span class="collection-modal__item-count">${c.item_count} paintings</span>
+                        </button>
+                    `).join('')}
+                ` : ''}
+                ${collections.length === 0 ? `
                     <p class="collection-modal__empty">No collections yet. Create one below!</p>
-                `}
+                ` : ''}
             </div>
 
             <div class="collection-modal__create">
@@ -1288,6 +1309,7 @@ async function initPaintingDetail() {
 function renderPaintingDetail(container, painting) {
     const isLoggedIn = Auth.isLoggedIn();
     const isFavorite = painting.is_favorite;
+    const collections = painting.collections || [];
     const artistName = painting.artist || 'Unknown Artist';
 
     // Collect button - just saves to library
@@ -1298,10 +1320,18 @@ function renderPaintingDetail(container, painting) {
         ? `btn btn--collect ${isFavorite ? 'is-collected' : ''}`
         : 'btn btn--collect';
 
-    // Show if already saved
+    // Build list of all collections this painting is in
     let collectionInfo = '';
-    if (isLoggedIn && isFavorite) {
-        collectionInfo = `<p class="painting-actions__info">In your <a href="/collection">Saved collection</a></p>`;
+    if (isLoggedIn && (isFavorite || collections.length > 0)) {
+        const collectionNames = [];
+        if (isFavorite) collectionNames.push('Saved');
+        collections.forEach(c => collectionNames.push(c.name));
+
+        const collectionList = collectionNames.length === 1
+            ? collectionNames[0]
+            : collectionNames.slice(0, -1).join(', ') + ' & ' + collectionNames[collectionNames.length - 1];
+
+        collectionInfo = `<p class="painting-actions__info">In: <a href="/collection">${collectionList}</a></p>`;
     }
 
     container.innerHTML = `

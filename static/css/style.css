@@ -2103,6 +2103,20 @@ main {
     margin-bottom: var(--spacing-md);
 }
 
+.collection-modal__section-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+    margin: var(--spacing-sm) 0 var(--spacing-xs);
+    padding: 0;
+}
+
+.collection-modal__section-label:first-child {
+    margin-top: 0;
+}
+
 .collection-modal__create {
     display: flex;
     gap: var(--spacing-sm);
