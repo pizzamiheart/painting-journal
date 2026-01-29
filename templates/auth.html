@@ -129,6 +129,16 @@
             color: var(--color-text-secondary);
             text-align: center;
             margin: 0 0 1.75rem 0;
+            line-height: 1.6;
+        }
+
+        .auth-action-title {
+            font-family: var(--font-serif);
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin: 0.25rem 0 0.75rem 0;
+            text-align: center;
+            color: var(--color-text);
         }
 
         .auth-form {
@@ -151,6 +161,7 @@
         }
 
         .form-group input {
+            width: 100%;
             padding: 0.75rem;
             font-size: 1rem;
             font-family: var(--font-sans);
@@ -318,7 +329,8 @@
 
         <div class="auth-card">
             <h1 class="auth-title" id="authTitle">Sign In</h1>
-            <p class="auth-subtitle">Welcome back to your collection</p>
+            <h3 class="auth-action-title" id="authActionTitle" style="display: none;"></h3>
+            <p class="auth-subtitle" id="authSubtitle">Welcome back to your collection</p>
 
             <div class="auth-error" id="authError" style="display: none;"></div>
             <div class="auth-success" id="authSuccess" style="display: none;"></div>
@@ -362,7 +374,8 @@
     (function() {
         const form = document.getElementById('authForm');
         const title = document.getElementById('authTitle');
-        const subtitle = document.querySelector('.auth-subtitle');
+        const actionTitle = document.getElementById('authActionTitle');
+        const subtitle = document.getElementById('authSubtitle');
         const submit = document.getElementById('authSubmit');
         const toggleBtn = document.getElementById('toggleAuth');
         const toggleText = document.getElementById('toggleText');
@@ -373,16 +386,35 @@
 
         let isSignUp = false;
 
-        // Check URL params for signup mode
-        if (window.location.search.includes('signup')) {
-            isSignUp = true;
-            title.textContent = 'Create Account';
-            subtitle.textContent = 'Browse, discover, and collect some of the coolest visual art over centuries. Add your own notes and tags. Enjoy.';
+        const signUpSubtitle = 'Browse, discover, and collect some of the coolest visual art over centuries.<br><br>Create art playlists. Add notes and tags. Share with friends.<br><br>Enjoy :)';
+
+        function setSignUpMode() {
+            title.textContent = 'Welcome to Art Stuff';
+            actionTitle.textContent = 'Create Account';
+            actionTitle.style.display = 'block';
+            subtitle.innerHTML = signUpSubtitle;
             submit.textContent = 'Create Account';
             toggleText.textContent = 'Already have an account?';
             toggleBtn.textContent = 'Sign In';
             confirmGroup.style.display = 'block';
             confirmInput.required = true;
+        }
+
+        function setSignInMode() {
+            title.textContent = 'Sign In';
+            actionTitle.style.display = 'none';
+            subtitle.innerHTML = 'Welcome back to your collection';
+            submit.textContent = 'Sign In';
+            toggleText.textContent = "Don't have an account?";
+            toggleBtn.textContent = 'Sign Up';
+            confirmGroup.style.display = 'none';
+            confirmInput.required = false;
+        }
+
+        // Check URL params for signup mode
+        if (window.location.search.includes('signup')) {
+            isSignUp = true;
+            setSignUpMode();
         }
 
         const forgotBtn = document.getElementById('forgotPasswordBtn');
@@ -393,13 +425,11 @@
         toggleBtn.addEventListener('click', () => {
             isSignUp = !isSignUp;
             isForgotPassword = false;
-            title.textContent = isSignUp ? 'Create Account' : 'Sign In';
-            subtitle.textContent = isSignUp ? 'Browse, discover, and collect some of the coolest visual art over centuries. Add your own notes and tags. Enjoy.' : 'Welcome back to your collection';
-            submit.textContent = isSignUp ? 'Create Account' : 'Sign In';
-            toggleText.textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
-            toggleBtn.textContent = isSignUp ? 'Sign In' : 'Sign Up';
-            confirmGroup.style.display = isSignUp ? 'block' : 'none';
-            confirmInput.required = isSignUp;
+            if (isSignUp) {
+                setSignUpMode();
+            } else {
+                setSignInMode();
+            }
             passwordGroup.style.display = 'block';
             document.getElementById('password').required = true;
             forgotSection.style.display = isSignUp ? 'none' : 'block';
@@ -420,9 +450,7 @@
             forgotSection.innerHTML = '<button type="button" class="btn-link" id="backToSignIn">Back to Sign In</button>';
             document.getElementById('backToSignIn').addEventListener('click', () => {
                 isForgotPassword = false;
-                title.textContent = 'Sign In';
-                subtitle.textContent = 'Welcome back to your collection';
-                submit.textContent = 'Sign In';
+                setSignInMode();
                 passwordGroup.style.display = 'block';
                 document.getElementById('password').required = true;
                 forgotSection.innerHTML = '<button type="button" class="btn-link" id="forgotPasswordBtn">Forgot password?</button>';
