@@ -135,26 +135,74 @@ const Lightbox = {
     }
 };
 
-// Collection modal for adding paintings to playlists - Spotify-style
+// Toast notification for simple feedback
+function showToast(message, linkText, linkHref) {
+    // Remove existing toast if any
+    const existing = document.getElementById('toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    toast.innerHTML = `
+        <span class="toast__message">${message}</span>
+        ${linkText && linkHref ? `<a href="${linkHref}" class="toast__link">${linkText}</a>` : ''}
+        <button class="toast__close">&times;</button>
+    `;
+
+    document.body.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => toast.classList.add('is-visible'));
+
+    // Close handlers
+    const closeToast = () => {
+        toast.classList.remove('is-visible');
+        setTimeout(() => toast.remove(), 300);
+    };
+
+    toast.querySelector('.toast__close').addEventListener('click', closeToast);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(closeToast, 5000);
+}
+
+// Add painting to Saved (simplified Collect flow)
+async function collectPainting(painting, triggerBtn) {
+    try {
+        const result = await API.addFavorite(painting);
+        painting.is_favorite = true;
+        painting.favorite_id = result.id;
+
+        // Update button state
+        if (triggerBtn) {
+            triggerBtn.classList.add('is-collected');
+            triggerBtn.textContent = '✓ Saved';
+        }
+
+        // Show confirmation toast with link to Collections
+        showToast('Added to Saved!', 'Go to Collections →', '/collection');
+
+    } catch (e) {
+        console.error('Failed to save painting:', e);
+        showToast('Failed to save painting. Please try again.', null, null);
+    }
+}
+
+// Collection modal for organizing paintings into collections (used from Collections page)
 async function showCollectionModal(painting, triggerBtn) {
     // Remove existing modal if any
     const existing = document.getElementById('collection-modal');
     if (existing) existing.remove();
 
-    // Fetch user's collections and check which ones contain this painting
+    // Fetch user's collections
     let collections = [];
-    let savedPlaylist = null;
     try {
         const result = await API.getCollections();
         collections = result.collections || [];
-        // Find "Saved" playlist or create concept of it
-        savedPlaylist = collections.find(c => c.name === 'Saved');
     } catch (e) {
         console.error('Failed to fetch collections:', e);
     }
-
-    // Check if painting is in favorites (legacy "Saved")
-    const isInSaved = painting.is_favorite;
 
     const modal = document.createElement('div');
     modal.id = 'collection-modal';
@@ -163,26 +211,23 @@ async function showCollectionModal(painting, triggerBtn) {
         <div class="collection-modal__backdrop"></div>
         <div class="collection-modal__content">
             <button class="collection-modal__close">&times;</button>
-            <h3 class="collection-modal__title">Collect this painting</h3>
-            <p class="collection-modal__subtitle">Add to your playlists</p>
+            <h3 class="collection-modal__title">Add to Collection</h3>
+            <p class="collection-modal__subtitle">Choose a collection for this painting</p>
 
             <div class="collection-modal__list">
-                <button class="collection-modal__item ${isInSaved ? 'is-added' : ''}" data-id="saved" data-is-saved="true">
-                    <span class="collection-modal__item-check">${isInSaved ? '✓' : ''}</span>
-                    <span class="collection-modal__item-name">Saved</span>
-                    <span class="collection-modal__item-note">Your private collection</span>
-                </button>
-                ${collections.filter(c => c.name !== 'Saved').map(c => `
+                ${collections.length > 0 ? collections.map(c => `
                     <button class="collection-modal__item" data-id="${c.id}">
                         <span class="collection-modal__item-check"></span>
                         <span class="collection-modal__item-name">${c.name}</span>
                         <span class="collection-modal__item-count">${c.item_count} paintings</span>
                     </button>
-                `).join('')}
+                `).join('') : `
+                    <p class="collection-modal__empty">No collections yet. Create one below!</p>
+                `}
             </div>
 
             <div class="collection-modal__create">
-                <input type="text" id="new-collection-name" placeholder="+ New playlist..." class="collection-modal__input">
+                <input type="text" id="new-collection-name" placeholder="+ New collection..." class="collection-modal__input">
             </div>
 
             <div class="collection-modal__done">
@@ -194,69 +239,35 @@ async function showCollectionModal(painting, triggerBtn) {
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
 
-    let hasChanges = false;
-
     // Close handlers
     const closeModal = () => {
         modal.remove();
         document.body.style.overflow = '';
-        // Update the trigger button state if there were changes
-        if (hasChanges && triggerBtn) {
-            triggerBtn.classList.add('is-collected');
-            triggerBtn.textContent = '✓ Collected';
-        }
     };
     modal.querySelector('.collection-modal__backdrop').addEventListener('click', closeModal);
     modal.querySelector('.collection-modal__close').addEventListener('click', closeModal);
     modal.querySelector('#done-btn').addEventListener('click', closeModal);
 
-    // Toggle playlist items
+    // Add to collection
     modal.querySelectorAll('.collection-modal__item').forEach(btn => {
         btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
-            const isSaved = btn.dataset.isSaved === 'true';
             const isAdded = btn.classList.contains('is-added');
             const checkEl = btn.querySelector('.collection-modal__item-check');
 
+            if (isAdded) return; // Already added
+
             try {
-                if (isSaved) {
-                    // Handle legacy favorites/saved
-                    if (isAdded) {
-                        if (painting.favorite_id) {
-                            await API.removeFavorite(painting.favorite_id);
-                            painting.is_favorite = false;
-                            painting.favorite_id = null;
-                        }
-                        btn.classList.remove('is-added');
-                        checkEl.textContent = '';
-                    } else {
-                        const result = await API.addFavorite(painting);
-                        painting.is_favorite = true;
-                        painting.favorite_id = result.id;
-                        btn.classList.add('is-added');
-                        checkEl.textContent = '✓';
-                        hasChanges = true;
-                    }
-                } else {
-                    // Handle regular collections/playlists
-                    if (isAdded) {
-                        // Would need to track item_id to remove - for now just toggle visually
-                        btn.classList.remove('is-added');
-                        checkEl.textContent = '';
-                    } else {
-                        await API.addToCollection(id, painting);
-                        btn.classList.add('is-added');
-                        checkEl.textContent = '✓';
-                        hasChanges = true;
-                    }
-                }
+                await API.addToCollection(id, painting);
+                btn.classList.add('is-added');
+                checkEl.textContent = '✓';
             } catch (e) {
-                console.error('Failed to update playlist:', e);
+                console.error('Failed to add to collection:', e);
             }
         });
     });
 
-    // Create new playlist
+    // Create new collection
     const nameInput = modal.querySelector('#new-collection-name');
     nameInput.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter') {
@@ -268,6 +279,10 @@ async function showCollectionModal(painting, triggerBtn) {
                     await API.addToCollection(newCollection.id, painting);
                     // Add new item to the list
                     const list = modal.querySelector('.collection-modal__list');
+                    // Remove empty message if present
+                    const emptyMsg = list.querySelector('.collection-modal__empty');
+                    if (emptyMsg) emptyMsg.remove();
+
                     const newItem = document.createElement('button');
                     newItem.className = 'collection-modal__item is-added';
                     newItem.dataset.id = newCollection.id;
@@ -278,10 +293,9 @@ async function showCollectionModal(painting, triggerBtn) {
                     `;
                     list.appendChild(newItem);
                     nameInput.value = '';
-                    hasChanges = true;
                 }
             } catch (e) {
-                console.error('Failed to create playlist:', e);
+                console.error('Failed to create collection:', e);
             }
         }
     });
@@ -802,7 +816,7 @@ async function initCollection() {
 
             playlistsGrid.innerHTML = html || `
                 <div class="empty-state" style="grid-column: 1 / -1;">
-                    <p>No playlists yet. Start discovering and collecting art!</p>
+                    <p>No collections yet. Start discovering and collecting art!</p>
                     <a href="/explore" class="btn btn--primary">Discover Art</a>
                 </div>
             `;
@@ -923,12 +937,12 @@ async function initCollection() {
         playlistsGrid.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (!confirm('Delete this playlist?')) return;
+                if (!confirm('Delete this collection?')) return;
                 try {
                     await API.deleteCollection(btn.dataset.id);
                     loadPlaylists();
                 } catch (err) {
-                    alert('Failed to delete playlist');
+                    alert('Failed to delete collection');
                 }
             });
         });
@@ -938,13 +952,13 @@ async function initCollection() {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const currentName = btn.dataset.name;
-                const newName = prompt('Rename playlist:', currentName);
+                const newName = prompt('Rename collection:', currentName);
                 if (!newName || newName.trim() === '' || newName === currentName) return;
                 try {
                     await API.renameCollection(btn.dataset.id, newName.trim());
                     loadPlaylists();
                 } catch (err) {
-                    alert('Failed to rename playlist');
+                    alert('Failed to rename collection');
                 }
             });
         });
@@ -968,11 +982,11 @@ async function initCollection() {
                 <p class="painting-card__artist">${painting.artist}</p>
             </div>
             <div class="painting-card__bottom-actions">
-                <button class="painting-card__action-btn" data-action="add-to-playlist">
+                <button class="painting-card__action-btn" data-action="add-to-collection">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                         <path d="M12 5v14M5 12h14"/>
                     </svg>
-                    Move
+                    Add
                 </button>
                 ${options.showRemove ? `
                     <button class="painting-card__action-btn painting-card__action-btn--danger" data-action="remove">
@@ -986,12 +1000,40 @@ async function initCollection() {
         `;
 
         // Click on card image/info to go to painting detail
+        // Long-press on mobile opens collection modal
         const imageContainer = card.querySelector('.painting-card__image-container');
         const infoContainer = card.querySelector('.painting-card__info');
 
+        let longPressTimer = null;
+        let isLongPress = false;
+
         [imageContainer, infoContainer].forEach(el => {
             el.style.cursor = 'pointer';
-            el.addEventListener('click', () => {
+
+            // Touch handlers for long-press
+            el.addEventListener('touchstart', (e) => {
+                isLongPress = false;
+                longPressTimer = setTimeout(() => {
+                    isLongPress = true;
+                    // Haptic feedback if available
+                    if (navigator.vibrate) navigator.vibrate(50);
+                    showCollectionModal(painting, null);
+                }, 500);
+            }, { passive: true });
+
+            el.addEventListener('touchend', () => {
+                clearTimeout(longPressTimer);
+            });
+
+            el.addEventListener('touchmove', () => {
+                clearTimeout(longPressTimer);
+            });
+
+            el.addEventListener('click', (e) => {
+                if (isLongPress) {
+                    e.preventDefault();
+                    return;
+                }
                 window.location.href = `/painting/${painting.museum}/${encodeURIComponent(painting.external_id)}`;
             });
         });
@@ -1002,7 +1044,7 @@ async function initCollection() {
                 e.stopPropagation();
                 const action = btn.dataset.action;
 
-                if (action === 'add-to-playlist') {
+                if (action === 'add-to-collection') {
                     showCollectionModal(painting, null);
                 } else if (action === 'remove' && options.onRemove) {
                     options.onRemove(painting);
@@ -1024,9 +1066,13 @@ async function initCollection() {
     async function showSavedPaintings() {
         // Replace grid with saved paintings view
         const section = document.getElementById('playlists-section');
+        const isMobile = 'ontouchstart' in window;
         section.innerHTML = `
-            <button class="btn" id="back-to-playlists" style="margin-bottom: var(--spacing-lg);">&larr; Back to Playlists</button>
-            <h2 style="font-family: var(--font-serif); margin-bottom: var(--spacing-lg);">Saved</h2>
+            <button class="btn" id="back-to-playlists" style="margin-bottom: var(--spacing-lg);">&larr; Back to Collections</button>
+            <h2 style="font-family: var(--font-serif); margin-bottom: 0.5rem;">Saved</h2>
+            <p class="saved-hint" style="font-size: 0.8125rem; color: var(--color-text-muted); margin-bottom: var(--spacing-lg);">
+                ${isMobile ? 'Long-press a painting to add to a collection, or use the Add button.' : 'Use the Add button to organize into collections.'}
+            </p>
             <div id="saved-paintings-grid" class="painting-grid">
                 <div class="loading">Loading saved paintings</div>
             </div>
@@ -1089,7 +1135,7 @@ async function initCollection() {
         // Replace grid with collection paintings view
         const section = document.getElementById('playlists-section');
         section.innerHTML = `
-            <button class="btn" id="back-to-playlists" style="margin-bottom: var(--spacing-lg);">&larr; Back to Playlists</button>
+            <button class="btn" id="back-to-playlists" style="margin-bottom: var(--spacing-lg);">&larr; Back to Collections</button>
             <div class="collection-header-row">
                 <h2 style="font-family: var(--font-serif); margin-bottom: 0;">${collectionName}</h2>
                 ${slug ? `<button class="btn btn--small collection-share-btn" data-slug="${slug}" data-name="${collectionName}" style="margin-left: auto;">Share</button>` : ''}
@@ -1188,16 +1234,16 @@ async function initCollection() {
         }
     }
 
-    // Create playlist button
+    // Create collection button
     if (createBtn) {
         createBtn.addEventListener('click', async () => {
-            const name = prompt('Playlist name:');
+            const name = prompt('Collection name:');
             if (!name || !name.trim()) return;
             try {
                 await API.createCollection(name.trim());
                 loadPlaylists();
             } catch (e) {
-                alert('Failed to create playlist');
+                alert('Failed to create collection');
             }
         });
     }
@@ -1242,25 +1288,20 @@ async function initPaintingDetail() {
 function renderPaintingDetail(container, painting) {
     const isLoggedIn = Auth.isLoggedIn();
     const isFavorite = painting.is_favorite;
-    const collections = painting.collections || [];
-    const isCollected = isFavorite || collections.length > 0;
     const artistName = painting.artist || 'Unknown Artist';
 
-    // Single unified Collect button
+    // Collect button - just saves to library
     const collectButtonText = isLoggedIn
-        ? (isCollected ? '✓ Collected' : '+ Collect')
+        ? (isFavorite ? '✓ Saved' : '+ Collect')
         : '+ Collect';
     const collectButtonClass = isLoggedIn
-        ? `btn btn--collect ${isCollected ? 'is-collected' : ''}`
+        ? `btn btn--collect ${isFavorite ? 'is-collected' : ''}`
         : 'btn btn--collect';
 
-    // Build collection info text
+    // Show if already saved
     let collectionInfo = '';
-    if (isLoggedIn && isCollected) {
-        const collectionNames = [];
-        if (isFavorite) collectionNames.push('Saved');
-        collections.forEach(c => collectionNames.push(c.name));
-        collectionInfo = `<p class="painting-actions__info">In: ${collectionNames.join(', ')}</p>`;
+    if (isLoggedIn && isFavorite) {
+        collectionInfo = `<p class="painting-actions__info">In your <a href="/collection">Saved collection</a></p>`;
     }
 
     container.innerHTML = `
@@ -1367,7 +1408,7 @@ function renderPaintingDetail(container, painting) {
         </section>
     `;
 
-    // Set up unified Collect button
+    // Set up Collect button - simple save to library
     const collectBtn = document.getElementById('collect-btn');
     collectBtn.addEventListener('click', async () => {
         // If not logged in, redirect to login
@@ -1375,8 +1416,13 @@ function renderPaintingDetail(container, painting) {
             window.location.href = '/login?signup';
             return;
         }
-        // Open the collection modal
-        showCollectionModal(painting, collectBtn);
+        // If already saved, show a helpful message
+        if (painting.is_favorite) {
+            showToast('Already in your Saved collection!', 'Go to Collections →', '/collection');
+            return;
+        }
+        // Save to library
+        await collectPainting(painting, collectBtn);
     });
 
     // Load more by this artist
