@@ -2361,6 +2361,31 @@ main {
     font-size: 0.8125rem;
     color: var(--color-text-muted);
     margin: 0 0 var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.playlist-card__privacy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.playlist-card__privacy--private {
+    background: var(--color-bg-subtle);
+    color: var(--color-text-muted);
+}
+
+.playlist-card__privacy--public {
+    background: var(--color-sage-light, #e8f0e8);
+    color: var(--color-sage, #5a7a5a);
 }
 
 .playlist-card__actions {

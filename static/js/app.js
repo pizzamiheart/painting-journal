@@ -835,6 +835,11 @@ async function initCollection() {
             coverContent = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
         }
 
+        // Privacy indicator
+        const privacyBadge = isSaved
+            ? '<span class="playlist-card__privacy playlist-card__privacy--private"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 1C8.676 1 6 3.676 6 7v2H4v14h16V9h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v2H8V7c0-2.276 1.724-4 4-4z"/></svg> Private</span>'
+            : '<span class="playlist-card__privacy playlist-card__privacy--public"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> Public</span>';
+
         return `
             <div class="playlist-card ${isSaved ? 'playlist-card--saved' : ''}" data-id="${id}">
                 <div class="playlist-card__cover ${coverClass}">
@@ -842,11 +847,11 @@ async function initCollection() {
                 </div>
                 <div class="playlist-card__info">
                     <h3 class="playlist-card__name">${name}</h3>
-                    <p class="playlist-card__meta">${count} painting${count !== 1 ? 's' : ''}</p>
+                    <p class="playlist-card__meta">${count} painting${count !== 1 ? 's' : ''} ${privacyBadge}</p>
                     <div class="playlist-card__actions">
                         ${isSaved ? '' : `
                             <button class="playlist-card__action rename-btn" data-id="${id}" data-name="${name}">Rename</button>
-                            ${isShareable ? `<button class="playlist-card__action copy-link-btn" data-slug="${slug}">Copy Link</button>` : ''}
+                            ${isShareable ? `<button class="playlist-card__action share-btn" data-slug="${slug}" data-name="${name}">Share</button>` : ''}
                             <button class="playlist-card__action playlist-card__action--danger delete-btn" data-id="${id}">Delete</button>
                         `}
                     </div>
@@ -871,24 +876,48 @@ async function initCollection() {
                 if (e.target.closest('.playlist-card__actions')) return;
                 const collectionId = card.dataset.id;
                 const collectionName = card.querySelector('.playlist-card__name').textContent;
-                const slug = card.querySelector('.copy-link-btn')?.dataset.slug;
+                const slug = card.querySelector('.share-btn')?.dataset.slug;
                 showCollectionPaintings(collectionId, collectionName, slug);
             });
         });
 
-        // Copy link buttons
-        playlistsGrid.querySelectorAll('.copy-link-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+        // Share buttons (uses native share on mobile, copy link on desktop)
+        playlistsGrid.querySelectorAll('.share-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const slug = btn.dataset.slug;
+                const name = btn.dataset.name;
                 const url = `${window.location.origin}/s/${slug}`;
-                navigator.clipboard.writeText(url).then(() => {
-                    const original = btn.textContent;
-                    btn.textContent = 'Copied!';
-                    setTimeout(() => btn.textContent = original, 1500);
-                });
+
+                // Try native share API first (works on mobile)
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: `${name} - Art Stuff`,
+                            text: `Check out my art collection: ${name}`,
+                            url: url
+                        });
+                    } catch (err) {
+                        // User cancelled or share failed - that's ok
+                        if (err.name !== 'AbortError') {
+                            console.log('Share failed, falling back to copy');
+                            copyToClipboard(url, btn);
+                        }
+                    }
+                } else {
+                    // Fallback to copy link
+                    copyToClipboard(url, btn);
+                }
             });
         });
+
+        function copyToClipboard(url, btn) {
+            navigator.clipboard.writeText(url).then(() => {
+                const original = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = original, 1500);
+            });
+        }
 
         // Delete buttons
         playlistsGrid.querySelectorAll('.delete-btn').forEach(btn => {
@@ -1063,7 +1092,7 @@ async function initCollection() {
             <button class="btn" id="back-to-playlists" style="margin-bottom: var(--spacing-lg);">&larr; Back to Playlists</button>
             <div class="collection-header-row">
                 <h2 style="font-family: var(--font-serif); margin-bottom: 0;">${collectionName}</h2>
-                ${slug ? `<a href="/s/${slug}" target="_blank" class="btn btn--small" style="margin-left: auto;">View Public Page</a>` : ''}
+                ${slug ? `<button class="btn btn--small collection-share-btn" data-slug="${slug}" data-name="${collectionName}" style="margin-left: auto;">Share</button>` : ''}
             </div>
             <div id="collection-paintings-grid" class="painting-grid">
                 <div class="loading">Loading paintings</div>
@@ -1074,6 +1103,33 @@ async function initCollection() {
             section.innerHTML = '<div class="playlists-grid" id="playlists-grid"><div class="loading">Loading</div></div>';
             loadPlaylists();
         });
+
+        // Share button for collection
+        const shareBtn = document.querySelector('.collection-share-btn');
+        if (shareBtn) {
+            shareBtn.addEventListener('click', async () => {
+                const url = `${window.location.origin}/s/${slug}`;
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: `${collectionName} - Art Stuff`,
+                            text: `Check out my art collection: ${collectionName}`,
+                            url: url
+                        });
+                    } catch (err) {
+                        if (err.name !== 'AbortError') {
+                            navigator.clipboard.writeText(url);
+                            shareBtn.textContent = 'Copied!';
+                            setTimeout(() => shareBtn.textContent = 'Share', 1500);
+                        }
+                    }
+                } else {
+                    navigator.clipboard.writeText(url);
+                    shareBtn.textContent = 'Copied!';
+                    setTimeout(() => shareBtn.textContent = 'Share', 1500);
+                }
+            });
+        }
 
         try {
             const collection = await API.getCollection(collectionId);
