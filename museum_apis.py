@@ -53,6 +53,9 @@ EUROPEANA_API_KEY = os.getenv("EUROPEANA_API_KEY", "")
 # SMK (Statens Museum for Kunst - Denmark) - no API key required
 SMK_BASE_URL = "https://api.smk.dk/api/v1"
 
+# Whitney Museum of American Art - no API key required
+WHITNEY_BASE_URL = "https://whitney.org/api"
+
 REQUEST_TIMEOUT = 30  # Longer timeout for OAI-PMH
 
 # Cache for Rijksmuseum paintings (loaded on first search)
@@ -1228,6 +1231,99 @@ def _format_smk_painting(item):
     }
 
 
+# Whitney Museum of American Art API
+def whitney_search(query, page=1, limit=20):
+    """Search Whitney Museum collection (American art)."""
+    # Construct URL with pre-encoded bracket params (Whitney's API style)
+    import urllib.parse
+
+    encoded_query = urllib.parse.quote(query)
+    url = f"{WHITNEY_BASE_URL}/artworks?per_page={limit}&page={page}&q%5Btitle_cont%5D={encoded_query}&q%5Bclassification_cont%5D=Painting"
+
+    data = _make_request(
+        url,
+        None,  # Params already in URL
+        cache_prefix="whitney_search"
+    )
+
+    if not data:
+        return {"paintings": [], "total": 0, "page": page}
+
+    paintings = []
+    for item in data.get("data", []):
+        painting = _format_whitney_painting(item)
+        if painting and painting.get("image_url"):
+            paintings.append(painting)
+
+    return {
+        "paintings": paintings,
+        "total": data.get("meta", {}).get("total", 0),
+        "page": page
+    }
+
+
+def whitney_get_painting(tms_id):
+    """Get a single painting from Whitney by TMS ID."""
+    data = _make_request(
+        f"{WHITNEY_BASE_URL}/artworks/{tms_id}",
+        {},
+        cache_prefix="whitney_artwork"
+    )
+
+    if not data or not data.get("data"):
+        return None
+
+    return _format_whitney_painting(data["data"])
+
+
+def _format_whitney_painting(item):
+    """Format Whitney painting data."""
+    if not isinstance(item, dict):
+        return None
+
+    attrs = item.get("attributes", {})
+    if not attrs:
+        return None
+
+    # Get image URL
+    images = attrs.get("images", [])
+    image_url = images[0].get("url", "") if images else ""
+
+    # Skip if no image
+    if not image_url:
+        return None
+
+    # Get artist from relationships or included data
+    artist = "Unknown Artist"
+    # Whitney sometimes includes artist info in different places
+    artist_data = item.get("relationships", {}).get("artists", {}).get("data", [])
+    if artist_data:
+        # For now, mark as needing artist lookup
+        artist = "Whitney Collection"
+
+    tms_id = str(attrs.get("tms_id", attrs.get("id", "")))
+
+    return {
+        "external_id": tms_id,
+        "museum": "whitney",
+        "museum_name": "Whitney Museum of American Art",
+        "title": attrs.get("title", "Untitled"),
+        "artist": artist,
+        "date_display": attrs.get("display_date", ""),
+        "medium": attrs.get("medium", ""),
+        "dimensions": attrs.get("dimensions", ""),
+        "description": _strip_html(attrs.get("description", "")),
+        "image_url": image_url,
+        "thumbnail_url": image_url,
+        "museum_url": f"https://whitney.org/collection/works/{tms_id}",
+        "metadata": {
+            "classification": attrs.get("classification", ""),
+            "credit_line": attrs.get("credit_line", ""),
+            "accession_number": attrs.get("accession_number", "")
+        }
+    }
+
+
 # Unified search function with parallel API calls
 def search_all(query, museum=None, page=1, limit=20):
     """Search across all museums or a specific museum using parallel calls."""
@@ -1243,13 +1339,19 @@ def search_all(query, museum=None, page=1, limit=20):
         return harvard_search(query, page, limit)
     elif museum == "smk":
         return smk_search(query, page, limit)
+    elif museum == "whitney":
+        return whitney_search(query, page, limit)
+    elif museum == "europeana":
+        return europeana_search(query, page, limit)
+    elif museum == "smithsonian":
+        return smithsonian_search(query, page, limit)
     else:
         # Search all museums in parallel
         results = {"paintings": [], "total": 0, "page": page}
-        per_museum = max(limit // 6, 1)  # 6 museums now
+        per_museum = max(limit // 7, 1)  # 7 main museums
 
         # Create parallel tasks for all museum searches
-        with ThreadPoolExecutor(max_workers=6) as executor:
+        with ThreadPoolExecutor(max_workers=7) as executor:
             futures = {
                 executor.submit(aic_search, query, page, per_museum): "aic",
                 executor.submit(rijks_search, query, page, per_museum): "rijks",
@@ -1257,6 +1359,7 @@ def search_all(query, museum=None, page=1, limit=20):
                 executor.submit(cleveland_search, query, page, per_museum): "cleveland",
                 executor.submit(harvard_search, query, page, per_museum): "harvard",
                 executor.submit(smk_search, query, page, per_museum): "smk",
+                executor.submit(whitney_search, query, page, per_museum): "whitney",
             }
 
             # Collect results with timeout to prevent hanging
@@ -1294,4 +1397,10 @@ def get_painting(museum, external_id):
         return harvard_get_painting(external_id)
     elif museum == "smk":
         return smk_get_painting(external_id)
+    elif museum == "whitney":
+        return whitney_get_painting(external_id)
+    elif museum == "europeana":
+        return europeana_get_painting(external_id)
+    elif museum == "smithsonian":
+        return smithsonian_get_painting(external_id)
     return None

@@ -11,7 +11,7 @@
 </script>
 
 <section class="search-section">
-    <h1 class="visually-hidden">Search Paintings</h1>
+    <h1 class="visually-hidden">Search Art</h1>
     <form id="search-form" class="search-form">
         <input type="text"
                id="search-input"
@@ -21,24 +21,20 @@
                autofocus>
         <button type="submit" class="search-button">Search</button>
     </form>
-    <div class="search-filters">
-        <select id="museum-select" class="filter-select">
-            <option value="">All Museums</option>
-            <option value="aic">Art Institute of Chicago</option>
-            <option value="cleveland">Cleveland Museum of Art</option>
-            <option value="europeana">Europeana</option>
-            <option value="harvard">Harvard Art Museums</option>
-            <option value="met">Metropolitan Museum of Art</option>
-            <option value="rijks">Rijksmuseum</option>
-            <option value="smithsonian">Smithsonian</option>
-        </select>
+    <div class="search-suggestions">
+        <span class="search-suggestions__label">Try:</span>
+        <button type="button" class="search-suggestion" data-query="Monet">Monet</button>
+        <button type="button" class="search-suggestion" data-query="Rembrandt">Rembrandt</button>
+        <button type="button" class="search-suggestion" data-query="impressionism">impressionism</button>
+        <button type="button" class="search-suggestion" data-query="portrait">portrait</button>
+        <button type="button" class="search-suggestion" data-query="landscape">landscape</button>
+        <button type="button" class="search-suggestion" data-query="still life">still life</button>
     </div>
 </section>
 
 <section id="search-results">
     <div class="empty-state">
-        <p>Search for paintings by artist, movement, or keyword</p>
-        <p>Try "Monet", "impressionism", or "starry night"</p>
+        <p>Discover art from world-class museums</p>
     </div>
 </section>
 

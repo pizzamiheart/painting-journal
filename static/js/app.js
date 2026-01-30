@@ -658,7 +658,6 @@ let searchState = {
 async function initSearch() {
     const form = document.getElementById('search-form');
     const input = document.getElementById('search-input');
-    const museumSelect = document.getElementById('museum-select');
     const resultsContainer = document.getElementById('search-results');
     const loadMoreBtn = document.getElementById('load-more');
 
@@ -667,23 +666,37 @@ async function initSearch() {
     // Restore search state from URL params
     const urlParams = new URLSearchParams(window.location.search);
     const savedQuery = urlParams.get('q');
-    const savedMuseum = urlParams.get('museum');
 
     if (savedQuery) {
         input.value = savedQuery;
         searchState.query = savedQuery;
-        if (savedMuseum) {
-            museumSelect.value = savedMuseum;
-            searchState.museum = savedMuseum;
-        }
+        searchState.museum = null;
         resultsContainer.innerHTML = '<div class="loading">Searching</div>';
         await performSearch(resultsContainer, loadMoreBtn, false);
     }
 
+    // Handle search suggestion clicks
+    document.querySelectorAll('.search-suggestion').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const query = btn.dataset.query;
+            input.value = query;
+            searchState.query = query;
+            searchState.museum = null;
+            searchState.page = 1;
+            searchState.hasMore = true;
+
+            history.replaceState(null, '', `/search?q=${encodeURIComponent(query)}`);
+            resultsContainer.innerHTML = createSkeletonGrid(8);
+            loadMoreBtn.style.display = 'none';
+
+            await performSearch(resultsContainer, loadMoreBtn, false);
+        });
+    });
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         searchState.query = input.value.trim();
-        searchState.museum = museumSelect.value || null;
+        searchState.museum = null;
         searchState.page = 1;
         searchState.hasMore = true;
 
@@ -691,7 +704,6 @@ async function initSearch() {
 
         // Update URL with search params
         const params = new URLSearchParams({ q: searchState.query });
-        if (searchState.museum) params.set('museum', searchState.museum);
         history.replaceState(null, '', `/search?${params}`);
 
         resultsContainer.innerHTML = createSkeletonGrid(8);

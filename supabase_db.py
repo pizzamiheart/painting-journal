@@ -681,20 +681,30 @@ def get_collection_stats():
         paintings_result = client.table("paintings").select("id", count="exact").execute()
         total_paintings = paintings_result.count or 0
 
-        # Get unique artists
-        artists_result = client.table("paintings").select("artist").execute()
-        artists = set(p["artist"] for p in artists_result.data if p.get("artist") and p["artist"] not in ["anonymous", "Unknown", "Artist unknown", "Unknown Artist"])
-        unique_artists = len(artists)
+        # Paginate to get all unique artists and museums (Supabase default limit is 1000)
+        all_artists = set()
+        all_museums = set()
+        unknown_artists = ["anonymous", "Unknown", "Artist unknown", "Unknown Artist"]
 
-        # Get unique museums
-        museums_result = client.table("paintings").select("museum_name").execute()
-        museums = set(p["museum_name"] for p in museums_result.data if p.get("museum_name"))
-        unique_museums = len(museums)
+        offset = 0
+        page_size = 1000
+        while True:
+            result = client.table("paintings").select("artist, museum_name").range(offset, offset + page_size - 1).execute()
+            if not result.data:
+                break
+            for p in result.data:
+                if p.get("artist") and p["artist"] not in unknown_artists:
+                    all_artists.add(p["artist"])
+                if p.get("museum_name"):
+                    all_museums.add(p["museum_name"])
+            if len(result.data) < page_size:
+                break
+            offset += page_size
 
         return {
             "paintings": total_paintings,
-            "artists": unique_artists,
-            "museums": unique_museums
+            "artists": len(all_artists),
+            "museums": len(all_museums)
         }
     except Exception as e:
         print(f"Error getting collection stats: {e}")
