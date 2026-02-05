@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Gradient from dusty blue through sage to golden ochre -->
+    <linearGradient id="brushGradient" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" style="stop-color:#7B9DB5;stop-opacity:0.9"/>
+      <stop offset="35%" style="stop-color:#8FA99B;stop-opacity:0.85"/>
+      <stop offset="65%" style="stop-color:#B5A882;stop-opacity:0.85"/>
+      <stop offset="100%" style="stop-color:#C9B87A;stop-opacity:0.9"/>
+    </linearGradient>
+
+    <!-- Subtle texture overlay -->
+    <filter id="softTexture">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+
+  <!-- Cream background -->
+  <rect width="1024" height="1024" fill="#E8DFD4"/>
+
+  <!-- Main brushstroke - elegant curved sweep -->
+  <g filter="url(#softTexture)">
+    <!-- Primary stroke body -->
+    <path d="M 220 580
+             Q 320 480, 480 460
+             Q 640 440, 750 500
+             Q 820 540, 800 560
+             Q 780 590, 680 580
+             Q 520 570, 380 590
+             Q 280 610, 220 580
+             Z"
+          fill="url(#brushGradient)"/>
+
+    <!-- Upper wisp - lighter, more transparent -->
+    <path d="M 280 520
+             Q 400 450, 550 440
+             Q 680 430, 720 470
+             Q 680 450, 550 460
+             Q 400 475, 300 520
+             Z"
+          fill="url(#brushGradient)"
+          opacity="0.5"/>
+
+    <!-- Lower accent - adds depth -->
+    <path d="M 320 600
+             Q 450 620, 600 600
+             Q 700 585, 740 590
+             Q 680 610, 560 620
+             Q 420 635, 320 610
+             Z"
+          fill="#A89968"
+          opacity="0.4"/>
+  </g>
+
+  <!-- Soft highlight on the stroke -->
+  <ellipse cx="480" cy="500" rx="120" ry="25" fill="#FFFFFF" opacity="0.15" transform="rotate(-8 480 500)"/>
+</svg>
