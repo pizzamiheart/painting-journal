@@ -167,29 +167,211 @@ function showToast(message, linkText, linkHref) {
     setTimeout(closeToast, 5000);
 }
 
-// Add painting to Saved (simplified Collect flow)
-async function collectPainting(painting, triggerBtn) {
+// Bottom sheet collect picker — Spotify-style "Save to..." tray
+async function showCollectSheet(painting, triggerBtn) {
+    // Remove existing sheet if any
+    const existing = document.getElementById('collect-sheet');
+    if (existing) existing.remove();
+
+    // Fetch user's collections
+    let collections = [];
     try {
-        const result = await API.addFavorite(painting);
-        painting.is_favorite = true;
-        painting.favorite_id = result.id;
-
-        // Update button state
-        if (triggerBtn) {
-            triggerBtn.classList.add('is-collected');
-            triggerBtn.textContent = '✓ Saved';
-        }
-
-        // Show confirmation toast with link to Collections
-        showToast('Added to Saved!', 'Go to Collections →', '/collection');
-
-        // Haptic feedback on native
-        if (window.ArtStuffNative) window.ArtStuffNative.hapticSuccess();
-
+        const result = await API.getCollections();
+        collections = result.collections || [];
     } catch (e) {
-        console.error('Failed to save painting:', e);
-        showToast('Failed to save painting. Please try again.', null, null);
-        if (window.ArtStuffNative) window.ArtStuffNative.hapticError();
+        console.error('Failed to fetch collections:', e);
+    }
+
+    const isSaved = !!painting.is_favorite;
+    const paintingCollectionIds = (painting.collections || []).map(c => c.id);
+
+    const sheet = document.createElement('div');
+    sheet.id = 'collect-sheet';
+    sheet.className = 'collect-sheet';
+    sheet.innerHTML = `
+        <div class="collect-sheet__backdrop"></div>
+        <div class="collect-sheet__tray">
+            <div class="collect-sheet__handle"></div>
+            <h3 class="collect-sheet__title">Save to...</h3>
+
+            <div class="collect-sheet__list">
+                <button class="collect-sheet__item ${isSaved ? 'is-added' : ''}" data-action="saved">
+                    <span class="collect-sheet__item-check">${isSaved ? '✓' : ''}</span>
+                    <span class="collect-sheet__item-name">Saved</span>
+                    <span class="collect-sheet__item-note">Your library</span>
+                </button>
+
+                ${collections.map(c => {
+                    const isIn = paintingCollectionIds.includes(c.id);
+                    return `
+                        <button class="collect-sheet__item ${isIn ? 'is-added' : ''}" data-action="collection" data-id="${c.id}">
+                            <span class="collect-sheet__item-check">${isIn ? '✓' : ''}</span>
+                            <span class="collect-sheet__item-name">${c.name}</span>
+                            <span class="collect-sheet__item-note">${c.item_count} paintings</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+
+            <div class="collect-sheet__create">
+                <input type="text" placeholder="+ New collection..." class="collect-sheet__input" id="sheet-new-collection">
+            </div>
+
+            <button class="btn btn--primary collect-sheet__done" id="sheet-done-btn">Done</button>
+        </div>
+    `;
+
+    document.body.appendChild(sheet);
+    document.body.style.overflow = 'hidden';
+
+    // Animate in
+    requestAnimationFrame(() => sheet.classList.add('is-open'));
+
+    // Close logic
+    const closeSheet = () => {
+        sheet.classList.remove('is-open');
+        setTimeout(() => {
+            sheet.remove();
+            document.body.style.overflow = '';
+        }, 300);
+        updateCollectButton(painting, triggerBtn);
+    };
+
+    sheet.querySelector('.collect-sheet__backdrop').addEventListener('click', closeSheet);
+    sheet.querySelector('#sheet-done-btn').addEventListener('click', closeSheet);
+
+    // "Saved" item click — uses favorites API
+    const savedItem = sheet.querySelector('[data-action="saved"]');
+    savedItem.addEventListener('click', async () => {
+        const isCurrentlySaved = savedItem.classList.contains('is-added');
+        const checkEl = savedItem.querySelector('.collect-sheet__item-check');
+
+        if (isCurrentlySaved) {
+            if (painting.favorite_id) {
+                try {
+                    await API.removeFavorite(painting.favorite_id);
+                    painting.is_favorite = false;
+                    painting.favorite_id = null;
+                    savedItem.classList.remove('is-added');
+                    checkEl.textContent = '';
+                    if (window.ArtStuffNative) window.ArtStuffNative.haptic();
+                } catch (e) {
+                    console.error('Failed to remove from Saved:', e);
+                    if (window.ArtStuffNative) window.ArtStuffNative.hapticError();
+                }
+            }
+        } else {
+            try {
+                const result = await API.addFavorite(painting);
+                painting.is_favorite = true;
+                painting.favorite_id = result.id;
+                savedItem.classList.add('is-added');
+                checkEl.textContent = '✓';
+                if (window.ArtStuffNative) window.ArtStuffNative.hapticSuccess();
+            } catch (e) {
+                console.error('Failed to save:', e);
+                if (window.ArtStuffNative) window.ArtStuffNative.hapticError();
+            }
+        }
+    });
+
+    // Collection item click handlers
+    sheet.querySelectorAll('[data-action="collection"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            const isAdded = btn.classList.contains('is-added');
+            const checkEl = btn.querySelector('.collect-sheet__item-check');
+
+            if (isAdded) return;
+
+            try {
+                await API.addToCollection(id, painting);
+                btn.classList.add('is-added');
+                checkEl.textContent = '✓';
+                if (!painting.collections) painting.collections = [];
+                const name = btn.querySelector('.collect-sheet__item-name').textContent;
+                painting.collections.push({ id: parseInt(id) || id, name: name });
+                if (window.ArtStuffNative) window.ArtStuffNative.haptic();
+            } catch (e) {
+                console.error('Failed to add to collection:', e);
+                if (window.ArtStuffNative) window.ArtStuffNative.hapticError();
+            }
+        });
+    });
+
+    // Create new collection
+    const nameInput = sheet.querySelector('#sheet-new-collection');
+    nameInput.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+            const name = nameInput.value.trim();
+            if (!name) return;
+            try {
+                const newCollection = await API.createCollection(name);
+                if (newCollection && newCollection.id) {
+                    await API.addToCollection(newCollection.id, painting);
+                    const list = sheet.querySelector('.collect-sheet__list');
+                    const newItem = document.createElement('button');
+                    newItem.className = 'collect-sheet__item is-added';
+                    newItem.dataset.action = 'collection';
+                    newItem.dataset.id = newCollection.id;
+                    newItem.innerHTML = `
+                        <span class="collect-sheet__item-check">✓</span>
+                        <span class="collect-sheet__item-name">${name}</span>
+                        <span class="collect-sheet__item-note">1 painting</span>
+                    `;
+                    list.appendChild(newItem);
+                    nameInput.value = '';
+                    if (!painting.collections) painting.collections = [];
+                    painting.collections.push({ id: newCollection.id, name: name });
+                    if (window.ArtStuffNative) window.ArtStuffNative.hapticSuccess();
+                }
+            } catch (e) {
+                console.error('Failed to create collection:', e);
+                if (window.ArtStuffNative) window.ArtStuffNative.hapticError();
+            }
+        }
+    });
+}
+
+// Update Collect button and "In: ..." info after sheet closes
+function updateCollectButton(painting, triggerBtn) {
+    if (!triggerBtn) return;
+
+    const isSaved = painting.is_favorite;
+    const collections = painting.collections || [];
+
+    if (isSaved || collections.length > 0) {
+        triggerBtn.classList.add('is-collected');
+        triggerBtn.textContent = '✓ Collected';
+    } else {
+        triggerBtn.classList.remove('is-collected');
+        triggerBtn.textContent = '+ Collect';
+    }
+
+    // Rebuild "In: ..." info text
+    const actionsDiv = triggerBtn.closest('.painting-actions');
+    if (!actionsDiv) return;
+    let infoEl = actionsDiv.querySelector('.painting-actions__info');
+
+    const names = [];
+    if (isSaved) names.push('Saved');
+    collections.forEach(c => names.push(c.name));
+
+    if (names.length > 0) {
+        const listText = names.length === 1
+            ? names[0]
+            : names.slice(0, -1).join(', ') + ' & ' + names[names.length - 1];
+
+        if (infoEl) {
+            infoEl.innerHTML = `In: <a href="/collection">${listText}</a>`;
+        } else {
+            infoEl = document.createElement('p');
+            infoEl.className = 'painting-actions__info';
+            infoEl.innerHTML = `In: <a href="/collection">${listText}</a>`;
+            actionsDiv.appendChild(infoEl);
+        }
+    } else if (infoEl) {
+        infoEl.remove();
     }
 }
 
@@ -1310,12 +1492,13 @@ function renderPaintingDetail(container, painting) {
     const collections = painting.collections || [];
     const artistName = painting.artist || 'Unknown Artist';
 
-    // Collect button - just saves to library
+    // Collect button
+    const isCollected = isFavorite || collections.length > 0;
     const collectButtonText = isLoggedIn
-        ? (isFavorite ? '✓ Saved' : '+ Collect')
+        ? (isCollected ? '✓ Collected' : '+ Collect')
         : '+ Collect';
     const collectButtonClass = isLoggedIn
-        ? `btn btn--collect ${isFavorite ? 'is-collected' : ''}`
+        ? `btn btn--collect ${isCollected ? 'is-collected' : ''}`
         : 'btn btn--collect';
 
     // Build list of all collections this painting is in
@@ -1436,22 +1619,14 @@ function renderPaintingDetail(container, painting) {
         </section>
     `;
 
-    // Set up Collect button - simple save to library
+    // Set up Collect button — opens bottom sheet picker
     const collectBtn = document.getElementById('collect-btn');
     collectBtn.addEventListener('click', async () => {
-        // If not logged in, redirect to login
         if (!isLoggedIn) {
             window.location.href = '/login?signup';
             return;
         }
-        // If already saved, show a helpful message
-        if (painting.is_favorite) {
-            showToast('Already in your Saved collection!', 'Go to Collections →', '/collection');
-            if (window.ArtStuffNative) window.ArtStuffNative.hapticLight();
-            return;
-        }
-        // Save to library
-        await collectPainting(painting, collectBtn);
+        showCollectSheet(painting, collectBtn);
     });
 
     // Load more by this artist
