@@ -183,14 +183,18 @@ async function collectPainting(painting, triggerBtn) {
         // Show confirmation toast with link to Collections
         showToast('Added to Saved!', 'Go to Collections →', '/collection');
 
+        // Haptic feedback on native
+        if (window.ArtStuffNative) window.ArtStuffNative.hapticSuccess();
+
     } catch (e) {
         console.error('Failed to save painting:', e);
         showToast('Failed to save painting. Please try again.', null, null);
+        if (window.ArtStuffNative) window.ArtStuffNative.hapticError();
     }
 }
 
 // Collection modal for organizing paintings into collections (used from Collections page)
-async function showCollectionModal(painting, triggerBtn) {
+async function showCollectionModal(painting, triggerBtn, excludeCollectionId) {
     // Remove existing modal if any
     const existing = document.getElementById('collection-modal');
     if (existing) existing.remove();
@@ -206,6 +210,11 @@ async function showCollectionModal(painting, triggerBtn) {
 
     // Get IDs of collections this painting is already in
     const paintingCollectionIds = (painting.collections || []).map(c => c.id);
+
+    // Filter out the collection we're currently viewing
+    if (excludeCollectionId) {
+        collections = collections.filter(c => String(c.id) !== String(excludeCollectionId));
+    }
 
     // Separate into "already in" and "not in" for Spotify-style display
     const inCollections = collections.filter(c => paintingCollectionIds.includes(c.id));
@@ -282,8 +291,10 @@ async function showCollectionModal(painting, triggerBtn) {
                 await API.addToCollection(id, painting);
                 btn.classList.add('is-added');
                 checkEl.textContent = '✓';
+                if (window.ArtStuffNative) window.ArtStuffNative.haptic();
             } catch (e) {
                 console.error('Failed to add to collection:', e);
+                if (window.ArtStuffNative) window.ArtStuffNative.hapticError();
             }
         });
     });
@@ -314,9 +325,11 @@ async function showCollectionModal(painting, triggerBtn) {
                     `;
                     list.appendChild(newItem);
                     nameInput.value = '';
+                    if (window.ArtStuffNative) window.ArtStuffNative.hapticSuccess();
                 }
             } catch (e) {
                 console.error('Failed to create collection:', e);
+                if (window.ArtStuffNative) window.ArtStuffNative.hapticError();
             }
         }
     });
@@ -1033,40 +1046,12 @@ async function initCollection() {
         `;
 
         // Click on card image/info to go to painting detail
-        // Long-press on mobile opens collection modal
         const imageContainer = card.querySelector('.painting-card__image-container');
         const infoContainer = card.querySelector('.painting-card__info');
 
-        let longPressTimer = null;
-        let isLongPress = false;
-
         [imageContainer, infoContainer].forEach(el => {
             el.style.cursor = 'pointer';
-
-            // Touch handlers for long-press
-            el.addEventListener('touchstart', (e) => {
-                isLongPress = false;
-                longPressTimer = setTimeout(() => {
-                    isLongPress = true;
-                    // Haptic feedback if available
-                    if (navigator.vibrate) navigator.vibrate(50);
-                    showCollectionModal(painting, null);
-                }, 500);
-            }, { passive: true });
-
-            el.addEventListener('touchend', () => {
-                clearTimeout(longPressTimer);
-            });
-
-            el.addEventListener('touchmove', () => {
-                clearTimeout(longPressTimer);
-            });
-
-            el.addEventListener('click', (e) => {
-                if (isLongPress) {
-                    e.preventDefault();
-                    return;
-                }
+            el.addEventListener('click', () => {
                 window.location.href = `/painting/${painting.museum}/${encodeURIComponent(painting.external_id)}`;
             });
         });
@@ -1078,7 +1063,7 @@ async function initCollection() {
                 const action = btn.dataset.action;
 
                 if (action === 'add-to-collection') {
-                    showCollectionModal(painting, null);
+                    showCollectionModal(painting, null, options.collectionId);
                 } else if (action === 'remove' && options.onRemove) {
                     options.onRemove(painting);
                 }
@@ -1099,12 +1084,11 @@ async function initCollection() {
     async function showSavedPaintings() {
         // Replace grid with saved paintings view
         const section = document.getElementById('playlists-section');
-        const isMobile = 'ontouchstart' in window;
         section.innerHTML = `
             <button class="btn" id="back-to-playlists" style="margin-bottom: var(--spacing-lg);">&larr; Back to Collections</button>
             <h2 style="font-family: var(--font-serif); margin-bottom: 0.5rem;">Saved</h2>
             <p class="saved-hint" style="font-size: 0.8125rem; color: var(--color-text-muted); margin-bottom: var(--spacing-lg);">
-                ${isMobile ? 'Long-press a painting to add to a collection, or use the Add button.' : 'Use the Add button to organize into collections.'}
+                Use the Add button to organize into collections.
             </p>
             <div id="saved-paintings-grid" class="painting-grid">
                 <div class="loading">Loading saved paintings</div>
@@ -1238,6 +1222,7 @@ async function initCollection() {
                             try {
                                 await API.removeFromCollection(collectionId, item.id);
                                 card.remove();
+                                if (window.ArtStuffNative) window.ArtStuffNative.haptic();
                                 // Check if grid is empty
                                 if (grid.children.length === 0) {
                                     grid.innerHTML = `
@@ -1249,6 +1234,7 @@ async function initCollection() {
                                 }
                             } catch (err) {
                                 alert('Failed to remove painting');
+                                if (window.ArtStuffNative) window.ArtStuffNative.hapticError();
                             }
                         }
                     });
@@ -1461,6 +1447,7 @@ function renderPaintingDetail(container, painting) {
         // If already saved, show a helpful message
         if (painting.is_favorite) {
             showToast('Already in your Saved collection!', 'Go to Collections →', '/collection');
+            if (window.ArtStuffNative) window.ArtStuffNative.hapticLight();
             return;
         }
         // Save to library

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}Art Stuff{% endblock %}</title>
 
     <!-- PWA Meta Tags -->
@@ -50,6 +50,11 @@
             <p>Art Stuff is managed by a human. That human is Andrew. Email him at <a href="mailto:me@andrewginn.fun">me@andrewginn.fun</a> if you need anything.</p>
         </div>
     </footer>
+
+    <!-- Capacitor (native app only) -->
+    <script src="capacitor.js" onerror="console.log('Running in browser mode')"></script>
+    <script src="capacitor_plugins.js" onerror=""></script>
+    <script src="{{ url_for('static', filename='js/capacitor-native.js') }}"></script>
 
     <script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(100000) | random }}"></script>
     <script>
