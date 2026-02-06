@@ -56,7 +56,7 @@ SMK_BASE_URL = "https://api.smk.dk/api/v1"
 # Whitney Museum of American Art - no API key required
 WHITNEY_BASE_URL = "https://whitney.org/api"
 
-REQUEST_TIMEOUT = 30  # Longer timeout for OAI-PMH
+REQUEST_TIMEOUT = 15
 
 # Cache for Rijksmuseum paintings (loaded on first search)
 _rijks_paintings_cache = None
@@ -273,7 +273,7 @@ def _format_aic_painting(item, iiif_url):
         "description": description,
         "style": item.get("style_title", ""),
         "artwork_type": item.get("artwork_type_title", ""),
-        "image_url": f"{iiif_url}/{image_id}/full/1686,/0/default.jpg" if image_id else None,
+        "image_url": f"{iiif_url}/{image_id}/full/900,/0/default.jpg" if image_id else None,
         "thumbnail_url": f"{iiif_url}/{image_id}/full/400,/0/default.jpg" if image_id else None,
         "museum_url": f"https://www.artic.edu/artworks/{item.get('id')}",
         "metadata": {
@@ -744,7 +744,7 @@ def _format_cleveland_painting(item):
         "dimensions": item.get("measurements", ""),
         "description": description,
         "image_url": image_url,
-        "thumbnail_url": image_url,
+        "thumbnail_url": web_image.get("url", image_url) if web_image else image_url,
         "museum_url": item.get("url", f"https://www.clevelandart.org/art/{item.get('id')}"),
         "metadata": {
             "department": item.get("department", ""),
@@ -834,7 +834,7 @@ def _format_harvard_painting(item):
         "dimensions": item.get("dimensions", ""),
         "description": _strip_html(description),
         "image_url": image_url,
-        "thumbnail_url": image_url,
+        "thumbnail_url": (image_url + "?width=400") if image_url else "",
         "museum_url": item.get("url", f"https://harvardartmuseums.org/collections/object/{item.get('id')}"),
         "metadata": {
             "department": item.get("department", ""),
@@ -1067,7 +1067,7 @@ def _format_smithsonian_painting(item):
         "dimensions": "",
         "description": _strip_html(description),
         "image_url": image_url,
-        "thumbnail_url": image_url,
+        "thumbnail_url": (image_url + "?max_w=400") if image_url else "",
         "museum_url": desc_data.get("record_link", ""),
         "metadata": {
             "unit": unit_name,

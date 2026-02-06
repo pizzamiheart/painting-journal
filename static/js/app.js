@@ -820,28 +820,37 @@ async function initHome() {
 
     container.innerHTML = '<div class="loading">Loading</div>';
 
-    const data = await API.getPaintingOfTheDay();
+    try {
+        const data = await API.getPaintingOfTheDay();
 
-    if (data.message) {
+        if (data.message) {
+            container.innerHTML = `
+                <div class="hero__empty">
+                    <p>${data.message}</p>
+                    <a href="/search" class="btn btn--primary">Start Exploring</a>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <a href="/painting/${data.museum}/${encodeURIComponent(data.external_id)}" class="hero__painting">
+                <div class="hero__image-container">
+                    <img class="hero__image" src="${data.image_url}" alt="${data.title}">
+                </div>
+                <h2 class="hero__title">${data.title}</h2>
+                <p class="hero__artist">${data.artist}</p>
+                <p class="hero__meta">${data.date_display} | ${data.museum_name || data.museum}</p>
+            </a>
+        `;
+    } catch (err) {
         container.innerHTML = `
             <div class="hero__empty">
-                <p>${data.message}</p>
+                <p>Couldn't load today's painting. Check your connection and try again.</p>
                 <a href="/search" class="btn btn--primary">Start Exploring</a>
             </div>
         `;
-        return;
     }
-
-    container.innerHTML = `
-        <a href="/painting/${data.museum}/${encodeURIComponent(data.external_id)}" class="hero__painting">
-            <div class="hero__image-container">
-                <img class="hero__image" src="${data.image_url}" alt="${data.title}">
-            </div>
-            <h2 class="hero__title">${data.title}</h2>
-            <p class="hero__artist">${data.artist}</p>
-            <p class="hero__meta">${data.date_display} | ${data.museum_name || data.museum}</p>
-        </a>
-    `;
 }
 
 // Search page

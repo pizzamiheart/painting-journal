@@ -62,6 +62,9 @@ def api_signup():
     if not data or not data.get('email') or not data.get('password'):
         return jsonify({"error": "Email and password are required"}), 400
 
+    if len(data['password']) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
     result = db.sign_up(data['email'], data['password'])
     if result.get('error'):
         return jsonify(result), 400

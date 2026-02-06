@@ -39,6 +39,8 @@
         </div>
     </header>
 
+    <div class="offline-banner" id="offlineBanner" style="display:none;">No internet connection</div>
+
     <main>
         <div class="container">
             {% block content %}{% endblock %}
@@ -66,6 +68,17 @@
                     .catch(err => console.log('SW registration failed:', err));
             });
         }
+
+        // Offline banner
+        (function() {
+            var banner = document.getElementById('offlineBanner');
+            function update() {
+                banner.style.display = navigator.onLine ? 'none' : 'block';
+            }
+            update();
+            window.addEventListener('online', update);
+            window.addEventListener('offline', update);
+        })();
     </script>
 </body>
 </html>
