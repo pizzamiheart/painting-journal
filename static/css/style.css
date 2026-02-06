@@ -1675,6 +1675,52 @@ main {
 }
 
 /* ==============================================
+   LEGAL PAGES
+   ============================================== */
+
+.legal-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: var(--spacing-xl) 0;
+}
+
+.legal-page h1 {
+    font-family: var(--font-serif);
+    font-size: 2rem;
+    font-weight: 500;
+    margin: 0 0 0.25rem 0;
+}
+
+.legal-page__updated {
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    margin: 0 0 2rem 0;
+}
+
+.legal-page h2 {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 2rem 0 0.5rem 0;
+}
+
+.legal-page p,
+.legal-page ul {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+}
+
+.legal-page ul {
+    padding-left: 1.25rem;
+}
+
+.legal-page a {
+    color: var(--color-text);
+    text-decoration: underline;
+}
+
+/* ==============================================
    OFFLINE BANNER
    ============================================== */
 

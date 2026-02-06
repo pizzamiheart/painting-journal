@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - Art Stuff{% endblock %}
+
+{% block content %}
+<div class="legal-page">
+    <h1>Privacy Policy</h1>
+    <p class="legal-page__updated">Last updated: February 5, 2026</p>
+
+    <p>Art Stuff ("we", "us", "our") is operated by Andrew Ginn. This policy explains what data we collect, why we collect it, and how we handle it.</p>
+
+    <h2>What We Collect</h2>
+    <p><strong>Account information:</strong> When you create an account, we collect your email address and a password. Your password is hashed and stored securely via Supabase (our database provider). We never see or store your password in plain text.</p>
+    <p><strong>Your collections and activity:</strong> When you use Art Stuff, we store your saved paintings, collections/playlists, journal entries, and tags. This data is tied to your account so you can access it across devices.</p>
+    <p><strong>We do not collect:</strong></p>
+    <ul>
+        <li>Location data</li>
+        <li>Contacts or address book information</li>
+        <li>Photos, camera, or microphone access</li>
+        <li>Device identifiers for advertising</li>
+        <li>Usage analytics or tracking data</li>
+    </ul>
+
+    <h2>How We Use Your Data</h2>
+    <p>Your data is used solely to provide the Art Stuff service:</p>
+    <ul>
+        <li>Your email is used for authentication and password resets</li>
+        <li>Your collections and activity data power your personal art experience</li>
+        <li>Public collections you share are accessible via their share link</li>
+    </ul>
+    <p>We do not sell, rent, or share your personal data with third parties. We do not serve ads. We do not use your data for marketing.</p>
+
+    <h2>Third-Party Services</h2>
+    <p><strong>Supabase:</strong> We use Supabase to store your account and collection data. Supabase processes data in accordance with their <a href="https://supabase.com/privacy" target="_blank" rel="noopener">privacy policy</a>.</p>
+    <p><strong>Museum APIs:</strong> When you browse art, we fetch painting data from public museum APIs (Art Institute of Chicago, Metropolitan Museum of Art, Rijksmuseum, and others). These are public endpoints; no personal data is sent to them.</p>
+    <p><strong>Google Fonts:</strong> We load fonts from Google Fonts, which may log standard web request data. See Google's <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">privacy policy</a>.</p>
+
+    <h2>Data Storage and Security</h2>
+    <p>Your data is stored on Supabase's cloud infrastructure. We use HTTPS for all connections. Authentication tokens are stored locally on your device.</p>
+
+    <h2>Data Retention and Deletion</h2>
+    <p>We keep your data for as long as you have an account. If you want your account and all associated data deleted, email <a href="mailto:me@andrewginn.fun">me@andrewginn.fun</a> and we'll take care of it.</p>
+
+    <h2>Children's Privacy</h2>
+    <p>Art Stuff is not directed at children under 13. We do not knowingly collect data from children under 13.</p>
+
+    <h2>Changes to This Policy</h2>
+    <p>We may update this policy from time to time. If we make significant changes, we'll note the new date at the top of this page.</p>
+
+    <h2>Contact</h2>
+    <p>Questions? Email <a href="mailto:me@andrewginn.fun">me@andrewginn.fun</a>.</p>
+</div>
+{% endblock %}

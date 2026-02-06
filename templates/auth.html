@@ -288,6 +288,18 @@
             color: var(--color-terracotta);
         }
 
+        .auth-privacy {
+            text-align: center;
+            margin-top: 1.25rem;
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+        }
+
+        .auth-privacy a {
+            color: var(--color-text-secondary);
+            text-decoration: underline;
+        }
+
         @media (max-width: 540px) {
             .auth-page {
                 padding: 8px;
@@ -362,6 +374,10 @@
 
             <div class="forgot-password" id="forgotPasswordSection">
                 <button type="button" class="btn-link" id="forgotPasswordBtn">Forgot password?</button>
+            </div>
+
+            <div class="auth-privacy">
+                By signing up, you agree to our <a href="/privacy">Privacy Policy</a>.
             </div>
         </div>
 

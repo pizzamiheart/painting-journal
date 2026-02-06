@@ -123,6 +123,12 @@ def home():
     return render_template('landing.html')
 
 
+@app.route('/privacy')
+def privacy_page():
+    """Privacy policy."""
+    return render_template('privacy.html')
+
+
 @app.route('/search')
 def search_page():
     """Search page."""
