@@ -2,12 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Art Stuff - Discover Cool Art Stuff</title>
+
+    <!-- Redirect immediately if already onboarded or logged in -->
+    <script>
+        if (localStorage.getItem('auth_token') || localStorage.getItem('onboarding_complete')) {
+            window.location.replace('/explore');
+        }
+    </script>
 
     <!-- PWA Meta Tags -->
     <meta name="description" content="Art Stuff: Discover masterworks from world-class museums. Build playlists of art that moves you. Share your taste with friends.">
-    <meta name="theme-color" content="#C5A55A">
+    <meta name="theme-color" content="#E8DFD4">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Art Stuff">
@@ -28,7 +35,7 @@
             --color-gold: #C5A55A;
             --color-gold-light: #D4BC7C;
             --color-gold-dark: #9A7B3C;
-            --color-surface: #F5F0EB;
+            --color-bg: #E8DFD4;
             --color-text: #2D2926;
             --color-text-secondary: #5C5552;
             --font-serif: 'Cormorant Garamond', Georgia, serif;
@@ -41,250 +48,274 @@
             height: 100%;
             font-family: var(--font-sans);
             color: var(--color-text);
+            background: var(--color-bg);
+            overflow: hidden;
         }
 
-        .landing {
-            min-height: 100vh;
+        .onboarding {
+            position: fixed;
+            inset: 0;
+            background: var(--color-bg);
             display: flex;
+            flex-direction: column;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            transition: opacity 0.4s ease;
+        }
+
+        .onboarding.fade-out {
+            opacity: 0;
+        }
+
+        .onboarding__track {
+            flex: 1;
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .onboarding__track::-webkit-scrollbar {
+            display: none;
+        }
+
+        .onboarding__slide {
+            flex: 0 0 100%;
+            width: 100%;
+            scroll-snap-align: center;
+            display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            padding: 2rem 2.5rem;
+            text-align: center;
             position: relative;
-            padding: 12px;
         }
 
-        /* Golden frame border */
-        .landing::before {
-            content: '';
-            position: absolute;
-            inset: 12px;
-            border: 5px solid var(--color-gold);
-            box-shadow:
-                inset 0 0 0 1px var(--color-gold-dark),
-                inset 0 0 0 2px var(--color-gold-light),
-                0 0 0 1px var(--color-gold-dark);
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        /* Background painting - served locally for fast loading */
-        .landing__bg {
+        .onboarding__bg {
             position: absolute;
             inset: 0;
-            background-image: url('/static/images/kroyer-skagen.jpg');
             background-size: cover;
             background-position: center;
-            opacity: 0.55;
+            opacity: 0.35;
         }
 
-        /* Gradient overlay for readability */
-        .landing__overlay {
+        .onboarding__bg::after {
+            content: '';
             position: absolute;
             inset: 0;
             background: linear-gradient(
                 to bottom,
-                rgba(232, 223, 212, 0.3) 0%,
-                rgba(232, 223, 212, 0.5) 50%,
+                rgba(232, 223, 212, 0.2) 0%,
+                rgba(232, 223, 212, 0.4) 40%,
                 rgba(232, 223, 212, 0.7) 100%
             );
         }
 
-        .landing__content {
+        .onboarding__slide > :not(.onboarding__bg) {
             position: relative;
-            z-index: 5;
-            text-align: center;
-            max-width: 480px;
-            padding: 2.5rem 2rem;
-            /* Warm sandy tone inspired by Skagen beach scenes */
-            background: linear-gradient(
-                145deg,
-                rgba(228, 218, 200, 0.97) 0%,
-                rgba(222, 210, 190, 0.97) 50%,
-                rgba(215, 203, 182, 0.97) 100%
-            );
-            border-radius: 4px;
-            box-shadow:
-                0 8px 32px rgba(0, 0, 0, 0.18),
-                inset 0 1px 0 rgba(255, 255, 255, 0.4);
-            /* Subtle paper texture effect */
-            background-image:
-                linear-gradient(145deg, rgba(228, 218, 200, 0.97) 0%, rgba(215, 203, 182, 0.97) 100%),
-                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
-            background-blend-mode: normal, soft-light;
+            z-index: 1;
         }
 
-        .landing__title {
+        .onboarding__icon {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 2rem;
+        }
+
+        .onboarding__icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .onboarding__heading {
             font-family: var(--font-serif);
-            font-size: 2.75rem;
+            font-size: 2.25rem;
             font-weight: 500;
-            margin: 0 0 0.5rem 0;
-            color: var(--color-text);
+            margin: 0 0 0.75rem 0;
             letter-spacing: -0.02em;
         }
 
-        .landing__subtitle {
-            font-family: var(--font-serif);
-            font-size: 1.25rem;
-            font-weight: 400;
+        .onboarding__desc {
+            font-size: 1rem;
+            line-height: 1.6;
             color: var(--color-text-secondary);
-            margin: 0 0 1.75rem 0;
-            font-style: italic;
+            max-width: 300px;
+            margin: 0;
         }
 
-        .landing__description {
-            font-size: 0.9375rem;
-            line-height: 1.7;
-            color: var(--color-text-secondary);
-            margin: 0 0 2rem 0;
-        }
-
-        .landing__actions {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .btn {
+        .onboarding__cta {
             display: inline-block;
-            padding: 0.875rem 1.5rem;
-            font-family: var(--font-sans);
-            font-size: 0.9375rem;
-            font-weight: 500;
-            text-decoration: none;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-align: center;
-        }
-
-        .btn--primary {
+            margin-top: 2rem;
+            padding: 0.875rem 2.5rem;
             background: var(--color-gold);
             color: white;
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            text-decoration: none;
         }
 
-        .btn--primary:hover {
+        .onboarding__cta:hover {
             background: var(--color-gold-dark);
         }
 
-        .btn--secondary {
-            background: transparent;
-            color: var(--color-text-secondary);
-            border: 1px solid #ccc;
-        }
-
-        .btn--secondary:hover {
-            border-color: var(--color-gold);
-            color: var(--color-text);
-        }
-
-        .landing__divider {
+        .onboarding__dots {
             display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin: 0.25rem 0;
-            color: var(--color-text-secondary);
-            font-size: 0.8125rem;
+            justify-content: center;
+            gap: 10px;
+            padding: 1.5rem 0 2.5rem;
         }
 
-        .landing__divider::before,
-        .landing__divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: #ddd;
+        .onboarding__dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #C8BFB4;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            transition: background 0.2s ease;
         }
 
-        .landing__credit {
-            position: absolute;
-            bottom: 24px;
-            right: 24px;
-            font-size: 0.6875rem;
-            color: rgba(45, 41, 38, 0.6);
-            z-index: 5;
-            text-align: right;
-            line-height: 1.4;
+        .onboarding__dot.active {
+            background: var(--color-gold);
         }
 
-        .landing__credit a {
-            color: inherit;
-            text-decoration: underline;
-        }
-
-        @media (max-width: 540px) {
-            .landing {
-                padding: 8px;
+        @media (max-height: 600px) {
+            .onboarding__icon {
+                width: 60px;
+                height: 60px;
+                margin-bottom: 1.25rem;
             }
 
-            .landing::before {
-                inset: 8px;
-                border-width: 4px;
+            .onboarding__heading {
+                font-size: 1.75rem;
             }
 
-            .landing__content {
-                padding: 2rem 1.5rem;
-                margin: 0 0.5rem;
+            .onboarding__desc {
+                font-size: 0.9375rem;
             }
 
-            .landing__title {
-                font-size: 2.25rem;
-            }
-
-            .landing__subtitle {
-                font-size: 1.125rem;
-            }
-
-            .landing__credit {
-                bottom: 16px;
-                right: 16px;
-                left: 16px;
-                text-align: center;
-            }
-        }
-
-        @media (max-height: 700px) {
-            .landing__content {
-                padding: 1.5rem;
-            }
-
-            .landing__description {
-                margin-bottom: 1.5rem;
+            .onboarding__dots {
+                padding: 1rem 0 1.5rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="landing">
-        <div class="landing__bg"></div>
-        <div class="landing__overlay"></div>
+    <div class="onboarding" id="onboarding">
+        <div class="onboarding__track" id="track">
+            <!-- Slide 1: Discover -->
+            <div class="onboarding__slide">
+                <div class="onboarding__bg" style="background-image: url('/static/images/kroyer-skagen.jpg')"></div>
+                <div class="onboarding__icon">
+                    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Framed painting -->
+                        <rect x="12" y="10" width="56" height="50" rx="2" stroke="#C5A55A" stroke-width="2.5"/>
+                        <rect x="18" y="16" width="44" height="38" rx="1" stroke="#C5A55A" stroke-width="1.5"/>
+                        <!-- Landscape inside -->
+                        <path d="M18 44 L30 32 L42 40 L52 30 L62 38 L62 54 L18 54 Z" fill="none" stroke="#C5A55A" stroke-width="1.5" stroke-linejoin="round"/>
+                        <!-- Sun -->
+                        <circle cx="52" cy="24" r="4" stroke="#C5A55A" stroke-width="1.5"/>
+                        <!-- Stand -->
+                        <line x1="30" y1="60" x2="22" y2="72" stroke="#C5A55A" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="50" y1="60" x2="58" y2="72" stroke="#C5A55A" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="40" y1="60" x2="40" y2="74" stroke="#C5A55A" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h2 class="onboarding__heading">Discover</h2>
+                <p class="onboarding__desc">Explore masterworks from world-class museums and find art that speaks to you.</p>
+            </div>
 
-        <div class="landing__content">
-            <h1 class="landing__title">Art Stuff</h1>
-            <p class="landing__subtitle">Discover. Collect. Share.</p>
+            <!-- Slide 2: Collect -->
+            <div class="onboarding__slide">
+                <div class="onboarding__bg" style="background-image: url('/static/images/monet-bennecourt.jpg')"></div>
+                <div class="onboarding__icon">
+                    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Stacked cards -->
+                        <rect x="18" y="6" width="44" height="34" rx="3" stroke="#C5A55A" stroke-width="1.5" transform="rotate(-6 40 23)"/>
+                        <rect x="16" y="14" width="44" height="34" rx="3" stroke="#C5A55A" stroke-width="1.5" transform="rotate(3 38 31)"/>
+                        <rect x="14" y="22" width="48" height="38" rx="3" stroke="#C5A55A" stroke-width="2" fill="#E8DFD4"/>
+                        <!-- Heart on front card -->
+                        <path d="M33 38 C33 34, 28 33, 28 37 C28 41, 38 48, 38 48 C38 48, 48 41, 48 37 C48 33, 43 34, 43 38 L38 44 L33 38Z" stroke="#C5A55A" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+                        <!-- Plus badge -->
+                        <circle cx="56" cy="26" r="9" fill="#C5A55A" stroke="#E8DFD4" stroke-width="2"/>
+                        <line x1="56" y1="22" x2="56" y2="30" stroke="#E8DFD4" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="52" y1="26" x2="60" y2="26" stroke="#E8DFD4" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h2 class="onboarding__heading">Collect</h2>
+                <p class="onboarding__desc">Save your favorites and build personal playlists of art that moves you.</p>
+            </div>
 
-            <p class="landing__description">
-                Discover masterworks.<br>
-                Collect and build your Art Stuff playlists.<br>
-                Share your collection.
-            </p>
-
-            <div class="landing__actions">
-                <a href="/login?signup" class="btn btn--primary">Collect and Share Art Stuff</a>
-                <div class="landing__divider">or</div>
-                <a href="/explore" class="btn btn--secondary">Browse First</a>
+            <!-- Slide 3: Share -->
+            <div class="onboarding__slide">
+                <div class="onboarding__bg" style="background-image: url('/static/images/bellows-love-of-winter.jpg')"></div>
+                <div class="onboarding__icon">
+                    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Connected nodes -->
+                        <circle cx="40" cy="20" r="8" stroke="#C5A55A" stroke-width="2"/>
+                        <circle cx="20" cy="54" r="8" stroke="#C5A55A" stroke-width="2"/>
+                        <circle cx="60" cy="54" r="8" stroke="#C5A55A" stroke-width="2"/>
+                        <!-- Connecting lines -->
+                        <line x1="34" y1="26" x2="24" y2="48" stroke="#C5A55A" stroke-width="1.5"/>
+                        <line x1="46" y1="26" x2="56" y2="48" stroke="#C5A55A" stroke-width="1.5"/>
+                        <line x1="28" y1="54" x2="52" y2="54" stroke="#C5A55A" stroke-width="1.5"/>
+                        <!-- Small dots at center of nodes -->
+                        <circle cx="40" cy="20" r="3" fill="#C5A55A"/>
+                        <circle cx="20" cy="54" r="3" fill="#C5A55A"/>
+                        <circle cx="60" cy="54" r="3" fill="#C5A55A"/>
+                    </svg>
+                </div>
+                <h2 class="onboarding__heading">Share</h2>
+                <p class="onboarding__desc">Share your taste with friends and discover what art inspires them.</p>
+                <button class="onboarding__cta" id="getStarted">Get Started</button>
             </div>
         </div>
 
-        <div class="landing__credit">
-            <em>Fiskere på Skagens strand</em><br>
-            P.S. Krøyer, 1882
+        <div class="onboarding__dots" id="dots">
+            <button class="onboarding__dot active" data-slide="0" aria-label="Slide 1"></button>
+            <button class="onboarding__dot" data-slide="1" aria-label="Slide 2"></button>
+            <button class="onboarding__dot" data-slide="2" aria-label="Slide 3"></button>
         </div>
     </div>
 
     <script>
-        // Redirect to explore if already logged in
-        if (localStorage.getItem('auth_token')) {
-            window.location.href = '/explore';
-        }
+        const track = document.getElementById('track');
+        const dots = document.querySelectorAll('.onboarding__dot');
+        const onboarding = document.getElementById('onboarding');
+
+        // Update active dot on scroll
+        track.addEventListener('scroll', function() {
+            const slideWidth = track.offsetWidth;
+            const index = Math.round(track.scrollLeft / slideWidth);
+            dots.forEach(function(dot, i) {
+                dot.classList.toggle('active', i === index);
+            });
+        });
+
+        // Dot tap: scroll to slide
+        dots.forEach(function(dot) {
+            dot.addEventListener('click', function() {
+                var slideIndex = parseInt(dot.getAttribute('data-slide'));
+                track.scrollTo({ left: slideIndex * track.offsetWidth, behavior: 'smooth' });
+            });
+        });
+
+        // Get Started button
+        document.getElementById('getStarted').addEventListener('click', function() {
+            localStorage.setItem('onboarding_complete', '1');
+            onboarding.classList.add('fade-out');
+            setTimeout(function() {
+                window.location.replace('/explore');
+            }, 400);
+        });
     </script>
 </body>
 </html>
