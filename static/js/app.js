@@ -78,7 +78,7 @@ const Lightbox = {
             lightbox.className = 'lightbox';
             lightbox.innerHTML = `
                 <button class="lightbox__close">&times;</button>
-                <img class="lightbox__image" src="" alt="">
+                <img class="lightbox__image" src="" alt="" onerror="this.style.display='none'">
                 <div class="lightbox__info">
                     <div class="lightbox__title"></div>
                     <div class="lightbox__artist"></div>
@@ -799,10 +799,13 @@ function createPaintingCard(painting) {
         </div>
     `;
 
-    // Add fade-in effect when image loads
+    // Add fade-in effect when image loads, hide on error
     const img = card.querySelector('.painting-card__image');
-    if (img.complete) {
+    img.addEventListener('error', () => { img.style.display = 'none'; });
+    if (img.complete && img.naturalWidth) {
         img.classList.add('loaded');
+    } else if (img.complete) {
+        img.style.display = 'none';
     } else {
         img.addEventListener('load', () => img.classList.add('loaded'));
     }
@@ -1252,10 +1255,13 @@ async function initCollection() {
             });
         });
 
-        // Add fade-in effect when image loads
+        // Add fade-in effect when image loads, hide on error
         const img = card.querySelector('.painting-card__image');
-        if (img.complete) {
+        img.addEventListener('error', () => { img.style.display = 'none'; });
+        if (img.complete && img.naturalWidth) {
             img.classList.add('loaded');
+        } else if (img.complete) {
+            img.style.display = 'none';
         } else {
             img.addEventListener('load', () => img.classList.add('loaded'));
         }
@@ -1518,7 +1524,7 @@ function renderPaintingDetail(container, painting) {
     container.innerHTML = `
         <div class="painting-detail__main">
             <div class="painting-detail__image-container">
-                <img class="painting-detail__image" src="${painting.image_url}" alt="${painting.title}">
+                <img class="painting-detail__image" src="${painting.image_url}" alt="${painting.title}" onerror="this.style.display='none'">
                 <span class="click-hint">Click to view full size</span>
             </div>
             <div class="painting-detail__sidebar">
@@ -1933,7 +1939,7 @@ async function initExplore() {
         if (accentColor) card.style.setProperty('--card-accent', accentColor);
         card.innerHTML = `
             <div class="carousel-card__frame">
-                <img class="carousel-card__img" src="${imageUrl || ''}" alt="${title}" loading="lazy">
+                <img class="carousel-card__img" src="${imageUrl || ''}" alt="${title}" loading="lazy" onerror="this.style.display='none'">
             </div>
             <h3 class="carousel-card__title">${title}</h3>
             ${subtitle ? `<p class="carousel-card__subtitle">${subtitle}</p>` : ''}
