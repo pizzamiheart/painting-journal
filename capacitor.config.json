@@ -10,7 +10,8 @@
     "contentInset": "automatic",
     "allowsLinkPreview": true,
     "scrollEnabled": true,
-    "backgroundColor": "#E8DFD4"
+    "backgroundColor": "#E8DFD4",
+    "allowsBackForwardNavigationGestures": true
   },
   "plugins": {
     "SplashScreen": {
