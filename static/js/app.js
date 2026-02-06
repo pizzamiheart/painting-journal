@@ -78,7 +78,7 @@ const Lightbox = {
             lightbox.className = 'lightbox';
             lightbox.innerHTML = `
                 <button class="lightbox__close">&times;</button>
-                <img class="lightbox__image" src="" alt="" onerror="this.style.display='none'">
+                <img class="lightbox__image" alt="">
                 <div class="lightbox__info">
                     <div class="lightbox__title"></div>
                     <div class="lightbox__artist"></div>
@@ -113,6 +113,7 @@ const Lightbox = {
         if (!this.element) this.init();
 
         const img = this.element.querySelector('.lightbox__image');
+        img.style.display = '';
         img.src = imageUrl;
         img.alt = title;
 
@@ -1533,7 +1534,7 @@ function renderPaintingDetail(container, painting) {
     container.innerHTML = `
         <div class="painting-detail__main">
             <div class="painting-detail__image-container">
-                <img class="painting-detail__image" src="${painting.image_url}" alt="${painting.title}" onerror="this.style.display='none'">
+                <img class="painting-detail__image" src="${painting.image_url}" alt="${painting.title}">
                 <span class="click-hint">Click to view full size</span>
             </div>
             <div class="painting-detail__sidebar">
