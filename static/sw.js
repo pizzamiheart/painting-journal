@@ -1,10 +1,11 @@
-const CACHE_NAME = 'painting-journal-v2';
+const CACHE_NAME = 'painting-journal-v3';
 const STATIC_ASSETS = [
   '/',
   '/explore',
   '/search',
   '/collection',
   '/privacy',
+  '/support',
   '/static/css/style.css',
   '/static/js/app.js',
   '/static/manifest.json'

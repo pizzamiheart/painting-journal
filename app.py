@@ -129,6 +129,12 @@ def privacy_page():
     return render_template('privacy.html')
 
 
+@app.route('/support')
+def support_page():
+    """Support page."""
+    return render_template('support.html')
+
+
 @app.route('/search')
 def search_page():
     """Search page."""
