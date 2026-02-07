@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Art Stuff - Discover Cool Art Stuff</title>
 
-    <!-- Redirect immediately if already onboarded or logged in -->
+    <!-- Redirect: web users always go to /explore, onboarding is mobile-only -->
     <script>
-        if (localStorage.getItem('auth_token') || localStorage.getItem('onboarding_complete')) {
+        if (!window.Capacitor || !window.Capacitor.isNativePlatform ||
+            localStorage.getItem('auth_token') || localStorage.getItem('onboarding_complete')) {
             window.location.replace('/explore');
         }
     </script>
