@@ -59,6 +59,28 @@ const Auth = {
                 } catch (e) {}
                 this.logout();
             });
+
+            const deleteBtn = document.getElementById('deleteAccountBtn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', async () => {
+                    if (!confirm('Are you sure you want to delete your account? All your saved paintings, collections, and journal entries will be permanently removed. This cannot be undone.')) return;
+                    try {
+                        const res = await fetch('/api/auth/delete-account', {
+                            method: 'DELETE',
+                            headers: this.getAuthHeaders()
+                        });
+                        if (res.ok) {
+                            localStorage.removeItem('auth_token');
+                            localStorage.removeItem('auth_user');
+                            window.location.href = '/login';
+                        } else {
+                            alert('Failed to delete account. Please try again.');
+                        }
+                    } catch (e) {
+                        alert('Failed to delete account. Please try again.');
+                    }
+                });
+            }
         } else {
             loginLink.style.display = 'block';
             userLoggedIn.style.display = 'none';

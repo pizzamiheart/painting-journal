@@ -13,8 +13,10 @@ load_dotenv()
 # Initialize Supabase client
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 supabase: Client = None
+supabase_admin: Client = None
 
 def get_client() -> Client:
     """Get or create Supabase client."""
@@ -24,6 +26,16 @@ def get_client() -> Client:
             raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env")
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
     return supabase
+
+
+def get_admin_client() -> Client:
+    """Get or create Supabase admin client (uses service role key)."""
+    global supabase_admin
+    if supabase_admin is None:
+        if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+        supabase_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    return supabase_admin
 
 
 def init_db():
@@ -130,6 +142,22 @@ def reset_password_request(email):
         print(f"Reset password error: {e}")
         # Don't reveal if email exists or not for security
         return {"success": True}
+
+
+def delete_user_account(user_id):
+    """Delete a user account and all associated data."""
+    client = get_client()
+    admin_client = get_admin_client()
+
+    # Delete user data from tables (order matters for foreign keys)
+    # 1. favorites (cascades to journal_entries and favorite_tags)
+    client.table("favorites").delete().eq("user_id", user_id).execute()
+    # 2. tags (cascades to remaining favorite_tags)
+    client.table("tags").delete().eq("user_id", user_id).execute()
+    # 3. collections (cascades to collection_items)
+    client.table("collections").delete().eq("user_id", user_id).execute()
+    # 4. Delete the auth user
+    admin_client.auth.admin.delete_user(user_id)
 
 
 # ============================================

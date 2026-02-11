@@ -114,6 +114,18 @@ def api_forgot_password():
     return jsonify({"message": "If an account exists with that email, a reset link has been sent."})
 
 
+@app.route('/api/auth/delete-account', methods=['DELETE'])
+@require_auth
+def delete_account():
+    """Delete the current user's account and all associated data."""
+    try:
+        db.delete_user_account(g.user['id'])
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"Error deleting account: {e}")
+        return jsonify({"error": "Failed to delete account"}), 500
+
+
 # Page routes
 @app.route('/')
 def home():
